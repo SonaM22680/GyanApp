@@ -1013,7 +1013,7 @@ function css(){return '#ld .red{background:#e74c3c}#ld .green{background:#2ecc71
 '#ld .lbar{display:flex;justify-content:space-between;align-items:center;gap:8px}#ld input{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);margin:6px 0;font-size:1rem;background:var(--card);color:var(--ink)}'+
 '#ld .msgs{height:130px;overflow-y:auto;font-size:.85rem;padding:5px;border:1px solid var(--line);border-radius:8px;margin:6px 0}#ld .chatrow{display:flex;gap:6px}#ld .chatrow input{margin:0}'}
 function btn(l,oc,g){return '<button class="btn'+(g?' ghost':'')+'" onclick="'+oc+'">'+l+'</button>'}
-function menuUI(){var on=!!FIREBASE_DB_URL,au=on&&!!FIREBASE_API_KEY,o;
+function menuUI(){if(!$('ld')){window.jackMenu&&window.jackMenu();return}var on=!!FIREBASE_DB_URL,au=on&&!!FIREBASE_API_KEY,o;
  if(!on)o='<p class=\"muted\">'+tt('ऑनलाइन के लिए कोड में Firebase URL डालना ज़रूरी है।','Set a Firebase URL in the code to enable online play.')+'</p>';
  else if(au&&!AU)o='<p class=\"muted\">'+tt('ऑनलाइन खेलने के लिए लॉगिन करें।','Log in to play online.')+'</p>'+authUI();
  else o=(AU?'<div class=\"lbar\"><span>👤 <b>'+esc(AU.name)+'</b></span><button class=\"lang\" onclick=\"LudoGame.logout()\">'+tt('लॉग आउट','Log out')+'</button></div>':'<input id=\"ldn\" placeholder=\"'+tt('अपना नाम','Your name')+'\" value=\"'+esc(pname)+'\">')+btn(tt('नया रूम बनाएँ','Create room'),'LudoGame.create()')+'<input id=\"ldc\" placeholder=\"'+tt('रूम कोड','Room code')+'\">'+btn(tt('रूम में जुड़ें','Join room'),'LudoGame.join()',1);
@@ -1061,7 +1061,7 @@ function vLoop(){if(!VC.on||!G)return;vf('GET','').then(function(d){d=d||{};var 
   o=VC.pc[c];if(o&&!o.ok&&Date.now()-o.t0>20000)drop(c)});
  Object.keys(VC.pc).forEach(function(c){if(!p[c])drop(c)});vui()}).catch(function(){})}
 function vStop(){clearInterval(VC.iv);Object.keys(VC.pc).forEach(drop);if(VC.st)VC.st.getTracks().forEach(function(t){t.stop()});VC.st=null;if(VC.on&&G&&me)vf('DELETE','/p/'+me).catch(function(){});VC.on=0;VC.mute=0;vui()}
-var L=window.LudoGame={
+var L=window.LudoGame={ctx:function(g,m){G=g;me=m},vstop:function(){vStop()},
  start:function(n){G=fresh(n===2?['red','yellow']:COL.slice(),'offline');gameUI()},
  create:function(){pname=AU?AU.name:($('ldn').value||'Player');var code=Math.random().toString(36).slice(2,6).toUpperCase();G=fresh(['red'],'online');G.code=code;G.names.red=pname;me='red';save();gameUI();startPoll()},
  join:function(){pname=AU?AU.name:($('ldn').value||'Player');var code=($('ldc').value||'').trim().toUpperCase();if(!code)return;G={code:code};fb('GET').then(function(o){if(!o){note(tt('रूम नहीं मिला','Room not found'));G=null;return}
@@ -1091,14 +1091,103 @@ var L=window.LudoGame={
   var extra=G.d===6||cap||ns===56;G.rolled=false;if(!extra)G.turn=(G.turn+1)%G.pl.length;save();draw()},
  chat:function(){var v=$('ldi').value.trim();if(!v||!G)return;var er=check(v);if(er){note(er);return}G.chat.push({n:G.names[me]||'Me',m:v.slice(0,200)});G.chat=G.chat.slice(-30);$('ldi').value='';save();draw()}
 };
+window.GYX={aTok:aTok,au:function(){return AU},db:FIREBASE_DB_URL,needAuth:!!FIREBASE_API_KEY,tt:tt,esc:esc,authUI:authUI,tone:tone,snd:function(){return SND}};
 var GOPEN=0;
 window.ludoOpen=function(v){try{history.pushState({},'')}catch(e){}GOPEN=v;window.scrollTo(0,0);render()};
 window.ludoIsOpen=function(){return GOPEN};
-window.ludoBack=function(){vStop();clearInterval(poll);G=null;GOPEN=0;window.scrollTo(0,0);render()};
+window.ludoBack=function(){window.jackExit&&window.jackExit();vStop();clearInterval(poll);G=null;GOPEN=0;window.scrollTo(0,0);render()};
 window.ludoView=function(){
- if(!GOPEN)return '<div class="card"><h2>'+tt('गेम्स','Games')+'</h2><p class="muted">'+tt('एक चुनें, गेम अगले पेज पर खुलेगा।','Pick one. The game opens on the next page.')+'</p></div>'+navRow('🎲','Ludo',tt('ऑफलाइन · ऑनलाइन','Offline · Online'),'ludoOpen(1)');
+ if(GOPEN===2)return window.jackView();
+ if(!GOPEN)return '<div class="card"><h2>'+tt('गेम्स','Games')+'</h2><p class="muted">'+tt('एक चुनें, गेम अगले पेज पर खुलेगा।','Pick one. The game opens on the next page.')+'</p></div>'+navRow('🎲','Ludo',tt('ऑफलाइन · ऑनलाइन','Offline · Online'),'ludoOpen(1)')+navRow('🃏','Jackaroo',tt('2 या 4 खिलाड़ी · चैट · वॉइस','2 or 4 players · chat · voice'),'ludoOpen(2)');
  return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><button onclick="ludoBack()" aria-label="Back" style="border:1px solid var(--line);background:var(--card);border-radius:12px;padding:6px 16px;font-size:22px;font-weight:800;line-height:1">&larr;</button><b>🎲 Ludo</b></div><style>'+css()+'</style><div id="ld"></div>'};
-window.ludoAfter=function(){if(!GOPEN)return;if(G&&G.pl)gameUI();else menuUI()};
+window.ludoAfter=function(){if(!GOPEN)return;if(GOPEN===2){window.jackAfter();return}if(G&&G.pl)gameUI();else menuUI()};
+})();
+
+/* ===== Jackaroo (2 या 4 खिलाड़ी, ऑफलाइन + ऑनलाइन, चैट, वॉइस) ===== */
+(function(){
+var X=window.GYX,tt=X.tt,esc=X.esc,COL=['red','green','yellow','blue'],HX={red:'#e74c3c',green:'#2ecc71',yellow:'#f1c40f',blue:'#3498db'},NH={red:'लाल',green:'हरा',yellow:'पीला',blue:'नीला'},OFF={red:0,green:16,yellow:32,blue:48};
+var HT={A:['बाहर निकालें, या 1 / 11 कदम','Leave base, or move 1 / 11'],K:['बाहर निकालें, या 13 कदम','Leave base, or move 13'],J:['अपनी गोटी की किसी दूसरी गोटी से अदला-बदली','Swap your marble with another one'],'4':['4 कदम पीछे','Move 4 back'],'5':['किसी भी गोटी को 5 कदम आगे','Move any marble 5 forward']};
+var G=null,me=null,poll=null,sel=null,pick=null,sk=0,V='red',AM=0,pn='Player';
+function $(i){return document.getElementById(i)}
+function RK(c){return c.slice(0,-1)}
+function nd(){var d=[];'♠♥♦♣'.split('').forEach(function(s){'A,2,3,4,5,6,7,8,9,10,J,Q,K'.split(',').forEach(function(r){d.push(r+s)})});for(var i=d.length-1;i>0;i--){var j=Math.random()*(i+1)|0,t=d[i];d[i]=d[j];d[j]=t}return d}
+function dr(){if(!G.deck||!G.deck.length)G.deck=nd();return G.deck.pop()}
+function fresh(n,mode){var s=n===2?['red','yellow']:COL.slice();G={mode:mode,seats:s,names:{},m:{},hand:{},turn:0,win:null,chat:[],ver:0,last:'',deck:nd()};s.forEach(function(c){G.m[c]=[-1,-1,-1,-1];G.hand[c]=[dr(),dr(),dr(),dr()]})}
+function tm(a,b){return a===b||(G.seats.length===4&&COL.indexOf(a)%2===COL.indexOf(b)%2)}
+function ab(c,r){return(OFF[c]+r)%64}
+function cur(){return G.seats[G.turn%G.seats.length]}
+function started(){return G.mode==='offline'||Object.keys(G.names).length>=G.seats.length}
+function mine(){return started()&&!G.win&&(G.mode==='offline'||cur()===me)}
+function done(c){return G.m[c].every(function(r){return r>=64})}
+function ctl(c){if(!done(c))return[c];if(G.seats.length===4){var p=G.seats[(G.seats.indexOf(c)+2)%4];return done(p)?[]:[p]}return[]}
+function nm(c,s){return(lang==='h'?NH[c]:c)+(G.names[c]?' ('+esc(G.names[c])+')':'')}
+function at(a){var r=null;G.seats.forEach(function(c){G.m[c].forEach(function(x,i){if(x>=0&&x<=63&&ab(c,x)===a)r={c:c,i:i}})});return r}
+function ok(c,i,t){var r=G.m[c][i];if(t<0||t>67)return false;
+ if(t<=63){var o=at(ab(c,t));if(o&&!(o.c===c&&o.i===i)&&(tm(o.c,c)||G.m[o.c][o.i]===0))return false}
+ for(var j=0;j<4;j++){var x=G.m[c][j];if(j!==i&&x>=64&&x>r&&x<=t)return false}return true}
+function mvs(card){var k=RK(card),out=[];
+ function f(c,i,r,n,tag){if(ok(c,i,r+n))out.push({c:c,i:i,to:r+n,tag:tag||String(n)})}
+ if(k==='5'){G.seats.forEach(function(c){G.m[c].forEach(function(r,i){if(r>=0&&r+5<=63)f(c,i,r,5)})});return out}
+ ctl(cur()).forEach(function(c){G.m[c].forEach(function(r,i){
+  if(r<0){if((k==='A'||k==='K')&&ok(c,i,0))out.push({c:c,i:i,to:0,tag:'out'});return}
+  if(k==='A'){f(c,i,r,1);f(c,i,r,11)}
+  else if(k==='K')f(c,i,r,13);
+  else if(k==='Q')f(c,i,r,12);
+  else if(k==='J'){if(r>=1&&r<=63)G.seats.forEach(function(d){if(d!==c)G.m[d].forEach(function(s,j){if(s>=1&&s<=63)out.push({c:c,i:i,tag:'swap',w:{c:d,i:j}})})})}
+  else if(k==='4'){if(r>=4&&r<=63&&ok(c,i,r-4))out.push({c:c,i:i,to:r-4,tag:'-4'})}
+  else f(c,i,r,+k)})});return out}
+function nxt(){G.turn=(G.turn+1)%G.seats.length}
+function ap(ci,m){var h=G.hand[cur()],cd=h.splice(ci,1)[0];h.push(dr());
+ if(m.tag==='swap'){var d=m.w.c,j=m.w.i,a1=ab(m.c,G.m[m.c][m.i]),a2=ab(d,G.m[d][j]);G.m[m.c][m.i]=(a2-OFF[m.c]+64)%64;G.m[d][j]=(a1-OFF[d]+64)%64}
+ else{if(m.to<=63){var o=at(ab(m.c,m.to));if(o&&!(o.c===m.c&&o.i===m.i))G.m[o.c][o.i]=-1}G.m[m.c][m.i]=m.to}
+ G.last=nm(cur())+': '+cd;var w=cur();if(G.seats.filter(function(x){return tm(x,w)}).every(done))G.win=w;else nxt()}
+function stuck(){return G.hand[cur()].every(function(c){return!mvs(c).length})}
+function fb(m,b,p){return X.aTok().then(function(t){return fetch(X.db+'/ludo/'+G.code+(p||'')+'.json'+(t?'?auth='+encodeURIComponent(t):''),{method:m,body:b!==undefined?JSON.stringify(b):undefined}).then(function(r){return r.json()})})}
+function save(){G.ver++;if(G.mode==='online'){var o={};['seats','names','m','hand','deck','turn','win','ver','last'].forEach(function(k){o[k]=G[k]});fb('PATCH',o).catch(function(){})}}
+function app(o){['seats','names','m','hand','turn','win','ver','last'].forEach(function(k){if(o[k]!==undefined)G[k]=o[k]});G.deck=o.deck||[];G.names=G.names||{};G.win=G.win||null;G.chat=o.chat||G.chat||[]}
+function startPoll(){clearInterval(poll);poll=setInterval(function(){if(!G)return;fb('GET').then(function(o){if(!o||!G)return;var nv=o.ver>G.ver,ch=o.chat&&o.chat.length!==G.chat.length;if(ch&&o.chat.length>G.chat.length&&X.snd())X.tone(0,740,.15,.07);if(nv){if(X.snd())X.tone(0,440,.12,.07);app(o);sel=pick=null}else if(ch)G.chat=o.chat;if(nv||ch)draw()}).catch(function(){})},1500)}
+function bp(c){return pt(ab(c,6),190)}
+function pt(a,R){var t=Math.PI/2+(a-OFF[V])/64*2*Math.PI;return[220+R*Math.cos(t),220+R*Math.sin(t)]}
+function ps(c,i){var r=G.m[c][i];if(r<0){var a=bp(c);return[a[0]+(i%2?9:-9),a[1]+(i>1?9:-9)]}return r<=63?pt(ab(c,r),150):pt(ab(c,63),150-(r-63)*20)}
+function css(){return '#jk .jb{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0}#jk .jb .btn{width:auto;margin:0;padding:6px 14px}#jk input{margin:6px 0}#jk .jm{height:110px;overflow-y:auto;font-size:.85rem;padding:5px;border:1px solid var(--line);border-radius:8px;margin:6px 0}#jk .jr{display:flex;gap:6px}#jk .jr input{margin:0}#jk .pu{animation:jp .8s infinite}@keyframes jp{50%{r:12;stroke-width:5}}#jk .jc{width:60px;height:86px;border-radius:8px;background:#fff;font-size:21px;font-weight:800;padding:0}#jk .jh{display:flex;gap:8px;justify-content:center;margin:8px 0}'}
+function draw(){var b=$('jkb');if(!b||!G)return;V=G.mode==='online'?me:'red';var st=started(),my=mine(),c0=cur(),hv=G.mode==='online'?me:c0,h=G.hand[hv]||[],cm=sel!==null&&my?mvs(h[sel]):[];
+ var s='<svg viewBox="0 0 440 440" style="width:100%;max-width:440px;display:block;margin:auto"><circle cx="220" cy="220" r="214" fill="#fdf3dc" stroke="#8a5a2b" stroke-width="4"/>';
+ for(var a=0;a<64;a++){var p=pt(a,150),sc=a%16===0?HX[COL[a/16]]:'#d9c9a3';s+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="'+(a%16===0?9:6)+'" fill="'+sc+'" stroke="#8a5a2b" stroke-width="1"/>'}
+ G.seats.forEach(function(c){for(var r=64;r<=67;r++){var p=pt(ab(c,63),150-(r-63)*20);s+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="8" fill="'+HX[c]+'" fill-opacity=".4" stroke="'+HX[c]+'"/>'}var q=bp(c);s+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="25" fill="'+HX[c]+'" fill-opacity=".35" stroke="'+HX[c]+'" stroke-width="2"/>'});
+ G.seats.forEach(function(c){G.m[c].forEach(function(r,i){var p=ps(c,i),can=cm.some(function(m){return m.c===c&&m.i===i});s+='<circle class="'+(can?'pu':'')+'" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="9" fill="'+HX[c]+'" stroke="'+(can?'#000':'#fff')+'" stroke-width="'+(can?3:1.5)+'" onclick="Jack.t(\''+c+'\','+i+')" style="cursor:pointer"/>'})});
+ s+='</svg>';
+ var tx=G.win?'🏆 '+nm(G.win)+tt(' जीत गया!',' wins!'):!st?tt('खिलाड़ियों का इंतज़ार: ','Waiting for players: ')+Object.keys(G.names).length+'/'+G.seats.length:nm(c0)+tt(' की बारी',"'s turn")+(my&&ctl(c0)[0]!==c0?' · '+tt('साथी की गोटियाँ चलाएँ','Move your partner\'s marbles'):'');
+ s+='<div class="card" style="text-align:center"><b>'+tx+'</b>'+(G.last?'<div class="muted">'+tt('पिछली चाल','Last move')+': '+G.last+'</div>':'')+'</div>';
+ if(st&&!G.win){s+='<div class="jh">'+h.map(function(cd,x){var rd=/[♥♦]/.test(cd);return '<button class="jc" onclick="Jack.pk('+x+')" style="border:3px solid '+(sel===x?'#4A1275':'#bbb')+';color:'+(rd?'#c0392b':'#111')+';opacity:'+(!my||mvs(cd).length?1:.4)+'">'+cd+'</button>'}).join('')+'</div>';
+  if(my&&sel!==null){var k=RK(h[sel]),ht=HT[k]||[k+' कदम',k+' steps'];s+='<p class="muted" style="text-align:center">'+tt(ht[0],ht[1])+(cm.length?'':' · '+tt('इस पत्ते की कोई चाल नहीं','no move with this card'))+'</p>'}
+  else if(my&&stuck())s+='<p class="muted" style="text-align:center">'+tt('कोई चाल नहीं, पत्ता अपने आप फेंका जाएगा...','No move, a card will be discarded...')+'</p>';
+  else if(my)s+='<p class="muted" style="text-align:center">'+tt('पहले पत्ता चुनें, फिर चमकती गोटी दबाएँ','Pick a card, then tap a glowing marble')+'</p>'}
+ if(pick)s+=pick.map(function(m,x){var t=m.tag==='out'?tt('बाहर निकालें','Leave base'):m.tag==='swap'?'↔ '+(lang==='h'?NH[m.w.c]:m.w.c)+' #'+(G.m[m.w.c][m.w.i]):m.tag+tt(' कदम',' steps');return '<button class="btn ghost" onclick="Jack.dm('+x+')">'+t+'</button>'}).join('');
+ b.innerHTML=s;var mm=$('jkm');if(mm){mm.innerHTML=G.chat.map(function(m){return '<div><b>'+esc(m.n)+':</b> '+esc(m.m)+'</div>'}).join('');mm.scrollTop=9e9}
+ if(my&&stuck()&&!sk){sk=1;setTimeout(function(){sk=0;if(G&&mine()&&stuck()){var hh=G.hand[cur()];hh.shift();hh.push(dr());G.last=nm(cur())+': '+tt('पास','pass');nxt();sel=pick=null;save();draw()}},1600)}}
+function gameUI(){var on=G.mode==='online';$('jk').innerHTML='<div class="jb"><button class="btn ghost" onclick="Jack.exit()">'+tt('बाहर','Exit')+'</button><b>'+(on?tt('रूम','Room')+': '+G.code:tt('ऑफलाइन','Offline'))+'</b>'+(on?'<button class="btn" onclick="Jack.share()">📲</button>':'<span></span>')+'</div><div id="jkb"></div>'+(on?'<div class="card"><div class="jb"><button class="btn" id="ldv" onclick="LudoGame.voice()">🎤 '+tt('वॉइस चैट','Voice chat')+'</button><button class="lang" id="ldmu" style="display:none" onclick="LudoGame.mute()">🎙️</button></div><div class="muted" id="ldvs"></div><div class="jm" id="jkm"></div><div class="jr"><input id="jki" maxlength="200" placeholder="'+tt('संदेश लिखें','Type a message')+'"><button class="btn" style="width:auto;margin:0" onclick="Jack.chat()">➤</button></div></div>':'');draw()}
+function menu(){var el=$('jk');if(!el)return;var au=X.au(),need=X.needAuth&&!au,o;
+ if(!X.db)o='<p class="muted">'+tt('ऑनलाइन के लिए कोड में Firebase URL डालना ज़रूरी है।','Set a Firebase URL in the code to enable online play.')+'</p>';
+ else if(need)o='<p class="muted">'+tt('ऑनलाइन खेलने के लिए लॉगिन करें।','Log in to play online.')+'</p>'+X.authUI();
+ else o=(au?'<div class="jb"><span>👤 <b>'+esc(au.name)+'</b></span><button class="lang" onclick="LudoGame.logout()">'+tt('लॉग आउट','Log out')+'</button></div>':'<input id="jkn" placeholder="'+tt('अपना नाम','Your name')+'" value="'+esc(pn)+'">')+'<button class="btn" onclick="Jack.create(2)">'+tt('रूम बनाएँ: 2 खिलाड़ी','Create room: 2 players')+'</button><button class="btn" onclick="Jack.create(4)">'+tt('रूम बनाएँ: 4 खिलाड़ी (2 टीम)','Create room: 4 players (2 teams)')+'</button><input id="jkc" placeholder="'+tt('रूम कोड','Room code')+'"><button class="btn ghost" onclick="Jack.join()">'+tt('रूम में जुड़ें','Join room')+'</button>';
+ el.innerHTML='<div class="card"><h3>📱 '+tt('ऑफलाइन (एक फ़ोन पर)','Offline (one phone)')+'</h3><button class="btn" onclick="Jack.start(2)">'+tt('2 खिलाड़ी','2 players')+'</button><button class="btn" onclick="Jack.start(4)">'+tt('4 खिलाड़ी (2 टीम)','4 players (2 teams)')+'</button></div><div class="card"><h3>🌐 '+tt('ऑनलाइन दोस्तों के साथ','Online with friends')+'</h3>'+o+'</div><div class="card muted"><b>'+tt('नियम','Rules')+'</b><ul><li>'+tt('हर खिलाड़ी की 4 गोटी और हाथ में 4 पत्ते। A या K से गोटी बाहर निकलती है।','Each player has 4 marbles and 4 cards. A or K takes a marble out.')+'</li><li>'+tt('अपनी चारों गोटी घुमाकर रंगीन होम-लेन में पहुँचाएँ। दूसरे की गोटी पर पहुँचे तो वह बेस में लौटती है।','Take all 4 marbles around into your coloured home lane. Landing on an opponent sends it back to base.')+'</li><li>'+tt('J = अदला-बदली, 4 = पीछे, 5 = किसी की भी गोटी आगे। अपनी स्टार्ट पर खड़ी गोटी सुरक्षित है।','J = swap, 4 = back, 5 = move anyone\'s marble. A marble on its start cell is safe.')+'</li><li>'+tt('4 खिलाड़ी में आमने-सामने वाले साथी हैं। अपनी गोटियाँ पूरी होने पर साथी की गोटियाँ चलाएँ।','In 4 players, opposite seats are partners. When yours are done, move your partner\'s.')+'</li></ul></div>'}
+window.jackMenu=menu;
+window.jackView=function(){return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><button onclick="ludoBack()" aria-label="Back" style="border:1px solid var(--line);background:var(--card);border-radius:12px;padding:6px 16px;font-size:22px;font-weight:800;line-height:1">&larr;</button><b>🃏 Jackaroo</b></div><style>'+css()+'</style><div id="jk"></div>'};
+window.jackAfter=function(){if(G)gameUI();else menu()};
+window.jackExit=function(){clearInterval(poll);LudoGame.vstop();LudoGame.ctx(null,null);G=null;sel=pick=null};
+function nameIn(){var a=X.au();pn=a?a.name:(($('jkn')||{}).value||'Player')}
+window.Jack={
+ start:function(n){fresh(n,'offline');sel=pick=null;gameUI()},
+ create:function(n){nameIn();fresh(n,'online');G.code='J'+Math.random().toString(36).slice(2,6).toUpperCase();me='red';G.names.red=pn;LudoGame.ctx({mode:'online',code:G.code},me);save();gameUI();startPoll()},
+ join:function(){nameIn();var code=($('jkc').value||'').trim().toUpperCase();if(!code)return;G={code:code,chat:[]};fb('GET').then(function(o){if(!o||!o.seats){note(tt('रूम नहीं मिला','Room not found'));G=null;return}G.mode='online';app(o);var f=G.seats.filter(function(c){return!G.names[c]})[0];if(!f){note(tt('रूम भरा है','Room is full'));G=null;return}G.names[f]=pn;me=f;LudoGame.ctx({mode:'online',code:code},me);save();gameUI();startPoll()}).catch(function(){G=null;note(tt('नेटवर्क एरर','Network error'))})},
+ exit:function(){window.jackExit();menu()},
+ share:function(){var t=tt('Jackaroo खेलो! रूम कोड: ','Play Jackaroo! Room code: ')+G.code;if(navigator.share)navigator.share({text:t}).catch(function(){});else if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){note(tt('कोड कॉपी हो गया','Code copied'))}).catch(function(){note(t)});else note(t)},
+ pk:function(x){if(!mine())return;sel=sel===x?null:x;pick=null;draw()},
+ t:function(c,i){if(!G||sel===null||!mine())return;var h=G.hand[G.mode==='online'?me:cur()],o=mvs(h[sel]).filter(function(m){return m.c===c&&m.i===i});if(!o.length)return;if(o.length===1)Jack.run(o[0]);else{pick=o;draw()}},
+ dm:function(x){if(pick&&pick[x])Jack.run(pick[x])},
+ run:function(m){if(!mine()||sel===null)return;if(X.snd())X.tone(0,520,.12,.08);ap(sel,m);sel=pick=null;save();draw()},
+ chat:function(){var v=$('jki').value.trim();if(!v||!G)return;var er=check(v);if(er){note(er);return}G.chat.push({n:G.names[me]||'Me',m:v.slice(0,200)});G.chat=G.chat.slice(-30);$('jki').value='';fb('PUT',G.chat,'/chat').catch(function(){});draw()}
+};
 })();
 
 var NOTES=[
