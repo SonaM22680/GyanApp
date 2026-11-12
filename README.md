@@ -1,4 +1,4 @@
-# ज्ञान ऐप / Gyan App
+ज्ञान ऐप / Gyan App
 
 हिंदी + English में बना एक ही फ़ाइल (`index.html`) का ऐप: क्विज़, मॉक टेस्ट, नोट्स, Ludo गेम और ड्रोन डिज़ाइन लैब।
 A single-file Hindi + English app: quizzes, mock tests, notes, a Ludo game and a drone Design Lab.
