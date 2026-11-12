@@ -1120,11 +1120,123 @@ function notesUI(){
  if(NAV.v==='note'){var n=NOTES[NAV.n],h=navTop(n[0]+' '+n[1])+'<div class="paper"><div class="pt">'+n[1]+'</div>';n[2].forEach(function(s,i){h+='<h3 class="hd"><i>'+(i+1)+'</i>'+s[0]+'</h3>'+s[1].map(fmtL).join('')});return h+'<div class="pe">✦ ✦ ✦</div></div>'}
  return navTop(NAV.ng==='his'?T('इतिहास नोट्स','History notes'):NAV.ng==='hin'?T('हिंदी व्याकरण नोट्स','Hindi grammar notes'):T('संविधान नोट्स','Constitution notes'))+NOTES.map(function(n,i){return (n[3]||'sam')!==(NAV.ng||'sam')?'':navRow(n[0],n[1],n[2].length+' '+T('हिस्से','parts'),"NAV.n="+i+";openNav('note')")}).join('')}
 
+// ===== ड्रोन लैब / Drone Lab: छोटा ड्रोन फ्रेम डिज़ाइन + STL (3D प्रिंट) =====
+var DM={m0802:{n:'0802',d:8,w:2,th:22,a:3,p:31,c:1,fc:4,pr:250,fp:800},m1103:{n:'1103',d:11,w:4.5,th:55,a:5.5,p:40,c:1,fc:5,pr:350,fp:1000},m1404:{n:'1404',d:14,w:8,th:120,a:10,p:65,c:2,fc:9,pr:600,fp:2000},m1806:{n:'1806 HP',d:18,w:22,th:450,a:28,p:127,c:3,fc:14,pr:900,fp:3500}};
+var DB=[{n:'1S 250mAh',c:1,mah:250,w:6,pr:150},{n:'1S 450mAh',c:1,mah:450,w:11,pr:220},{n:'2S 450mAh',c:2,mah:450,w:26,pr:350},{n:'2S 850mAh',c:2,mah:850,w:44,pr:500},{n:'1S 150mAh',c:1,mah:150,w:4,pr:120},{n:'3S 1000mAh 100C',c:3,mah:1000,w:85,pr:1400},{n:'3S 1500mAh 100C',c:3,mah:1500,w:125,pr:1900}];
+var DMA={PLA:1.24,PETG:1.27,TPU:1.21};
+var D={n:4,m:'m1103',b:1,mat:'PLA',cam:0,l:45,w:8,t:3,pr:18,v:30,hi:0,fc:0,st:0,ac:{cam:0,bat:0,sk:0},cw:14,bl:40,bw:18,hl:20,duct:0};
+function labCalc(){var m=DM[D.m],b=DB[D.b],n=D.n,ri=m.d/2+.25,rr=ri+2.5,h2=D.t+2,P=Math.PI;
+ var vol=P*(D.pr*D.pr-16)*D.t+n*Math.max(D.l-D.pr*.6,0)*D.w*D.t+n*P*(rr*rr-ri*ri)*h2+(D.hi&&D.fc?4*P*(2.6*2.6-.81)*5:0)+(D.duct?n*(P*(Math.pow(m.p/2+3.5,2)-Math.pow(m.p/2+1,2))*(h2+8)+3*(m.p/2-rr+1)*2*(h2+4)):0);
+ var fw=vol/1000*DMA[D.mat],axw=labAcc().reduce(function(s,a){return s+a[1]},0),tw=fw+n*m.w+b.w+m.fc+(D.cam?3:0)+(n===2&&!D.st?3:0)+2+axw,thr=(D.st===2?1:n)*m.th,r=thr/tw,hov=(D.st===2?1:n)*m.a*Math.pow(Math.min(1,tw/thr),1.5);
+ return {axw:axw,vol:vol,m:m,b:b,ri:ri,rr:rr,h2:h2,fw:fw,tw:tw,thr:thr,r:r,ft:r>=1?b.mah*.8/1000/hov*60:0,gap:(D.st===2?D.l-m.p:2*D.l*Math.sin(P/n)-m.p)-(D.duct?7:0),cost:Math.round(fw*1.5+n*m.pr+n*40+b.pr+m.fp+550+(D.cam?600:0)+(n===2&&!D.st?360:0)+axw*1.5)}}
+function labMesh(){var c=labCalc(),M=[],n=D.n,t=D.t,P=Math.PI;
+ function q(a,b,c2,d){M.push([a,b,c2],[a,c2,d])}
+ function p(u,z){return [u[0],u[1],z]}
+ function duct(cx,cy,a){ring(cx,cy,c.m.p/2+1,c.m.p/2+3.5,0,c.h2+8);for(var k=0;k<3;k++)box(c.rr*.8,c.m.p/2+2.2,1,0,t,a+k*2*P/3,cx,cy)}
+ function ring(cx,cy,ri,ro,z0,z1){var N=28;for(var i=0;i<N;i++){var a0=2*P*i/N,a1=2*P*(i+1)/N,O0=[cx+ro*Math.cos(a0),cy+ro*Math.sin(a0)],O1=[cx+ro*Math.cos(a1),cy+ro*Math.sin(a1)],I0=[cx+ri*Math.cos(a0),cy+ri*Math.sin(a0)],I1=[cx+ri*Math.cos(a1),cy+ri*Math.sin(a1)];
+  q(p(O0,z1),p(O1,z1),p(I1,z1),p(I0,z1));q(p(I0,z0),p(I1,z0),p(O1,z0),p(O0,z0));q(p(O0,z0),p(O1,z0),p(O1,z1),p(O0,z1));q(p(I1,z0),p(I0,z0),p(I0,z1),p(I1,z1))}}
+ function box(x0,x1,hw,z0,z1,an,ox,oy){var ca=Math.cos(an),sa=Math.sin(an);function v(x,y,z){return [x*ca-y*sa+(ox||0),x*sa+y*ca+(oy||0),z]}
+  var V=[v(x0,-hw,z0),v(x1,-hw,z0),v(x1,hw,z0),v(x0,hw,z0),v(x0,-hw,z1),v(x1,-hw,z1),v(x1,hw,z1),v(x0,hw,z1)];
+  q(V[0],V[3],V[2],V[1]);q(V[4],V[5],V[6],V[7]);q(V[0],V[1],V[5],V[4]);q(V[3],V[7],V[6],V[2]);q(V[0],V[4],V[7],V[3]);q(V[1],V[2],V[6],V[5])}
+ if(D.st===2){var pp=Math.max(D.pr,c.ri+4);ring(0,0,c.ri,pp,0,c.h2);box(pp*.6,D.l-(c.ri+c.rr)/2,D.w/2,0,t,3*P/2);ring(0,-D.l,c.ri,c.rr,0,c.h2);if(D.duct){duct(0,0,0);duct(0,-D.l,0)}}else ring(0,0,4,D.pr,0,t);
+ if(D.hi&&D.fc){var h=D.fc/2;[[h,h],[-h,h],[-h,-h],[h,-h]].forEach(function(s){ring(s[0],s[1],.9,2.6,t,t+5)})}
+ for(var i=0;i<(D.st===2?0:n);i++){var an=(n===4?45:90)*P/180+2*P*i/n;box(D.pr*.6,D.l-(c.ri+c.rr)/2,D.w/2,0,t,an);ring(D.l*Math.cos(an),D.l*Math.sin(an),c.ri,c.rr,0,c.h2);if(D.duct)duct(D.l*Math.cos(an),D.l*Math.sin(an),an)}
+ return M}
+function labSTL(){labDl(labMesh(),'drone_frame_'+D.n+'arm_'+D.l+'mm.stl')}
+function labDl(M,nm){var b=new ArrayBuffer(84+50*M.length),dv=new DataView(b),o=84;dv.setUint32(80,M.length,true);
+ M.forEach(function(f){var a=f[0],B=f[1],C=f[2],u=[B[0]-a[0],B[1]-a[1],B[2]-a[2]],v=[C[0]-a[0],C[1]-a[1],C[2]-a[2]],nx=u[1]*v[2]-u[2]*v[1],ny=u[2]*v[0]-u[0]*v[2],nz=u[0]*v[1]-u[1]*v[0],L=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+  [nx/L,ny/L,nz/L].concat(a,B,C).forEach(function(x,i){dv.setFloat32(o+4*i,x,true)});o+=50});
+ var A=document.createElement('a');A.href=URL.createObjectURL(new Blob([b],{type:'model/stl'}));A.download=nm;document.body.appendChild(A);A.click();A.remove()}
+function labDraw(){var cv=document.getElementById('labCv');if(!cv)return;var x=cv.getContext('2d'),W=cv.width,H=cv.height,c=labCalc(),M=labMesh(),a=D.v*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a),ce=Math.cos(.9),se=Math.sin(.9),sc=200/(D.l+c.rr+3),cs=getComputedStyle(document.body),Ld=[.3,-.4,.85];
+ function pr(q){var X=q[0]*ca-q[1]*sa,Y=q[0]*sa+q[1]*ca;return [W/2+X*sc,H/2+20-(q[2]*ce+Y*se)*sc,-Y*ce+q[2]*se]}
+ x.clearRect(0,0,W,H);
+ var R=M.map(function(f){var Q=f.map(pr),u=[f[1][0]-f[0][0],f[1][1]-f[0][1],f[1][2]-f[0][2]],v=[f[2][0]-f[0][0],f[2][1]-f[0][1],f[2][2]-f[0][2]],nx=u[1]*v[2]-u[2]*v[1],ny=u[2]*v[0]-u[0]*v[2],nz=u[0]*v[1]-u[1]*v[0],L=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+  return {Q:Q,d:(Q[0][2]+Q[1][2]+Q[2][2])/3,s:Math.max(0,((nx*ca-ny*sa)*Ld[0]+(nx*sa+ny*ca)*Ld[1])/L+nz/L*Ld[2])}}).sort(function(u,v){return u.d-v.d});
+ R.forEach(function(r){var col='hsl(265,45%,'+Math.round(28+r.s*40)+'%)';x.beginPath();x.moveTo(r.Q[0][0],r.Q[0][1]);x.lineTo(r.Q[1][0],r.Q[1][1]);x.lineTo(r.Q[2][0],r.Q[2][1]);x.closePath();x.fillStyle=col;x.strokeStyle=col;x.lineWidth=.6;x.fill();x.stroke()});
+ x.lineWidth=2;x.strokeStyle=(c.gap<1?cs.getPropertyValue('--bad'):cs.getPropertyValue('--good')).trim();
+ for(var i=0;i<D.n;i++){var an=(D.n===4?45:90)*Math.PI/180+2*Math.PI*i/D.n,cx=D.st===2?0:D.l*Math.cos(an),cy=D.st===2?(i?-D.l:0):D.l*Math.sin(an);x.beginPath();for(var k=0;k<=32;k++){var g=2*Math.PI*k/32,s=pr([cx+c.m.p/2*Math.cos(g),cy+c.m.p/2*Math.sin(g),c.h2+3]);if(k)x.lineTo(s[0],s[1]);else x.moveTo(s[0],s[1])}x.stroke()}}
+function labAfter(){var o=document.getElementById('labOut');if(!o)return;var c=labCalc(),st=c.r>=2?'✅ '+T('उड़ने के लिए बढ़िया','Good to fly'):c.r>=1.3?'⚠️ '+T('उड़ेगा, पर धीमा। हल्की बैटरी या पतला फ्रेम चुनें','Will fly but sluggish. Use a lighter battery or thinner frame'):'❌ '+T('नहीं उड़ेगा। वजन घटाएँ या बड़ी मोटर चुनें','Will not fly. Cut weight or pick a bigger motor');
+ o.innerHTML=`<b>${T('अनुमान','Estimate')}</b><p>${T('कुल वजन','Total weight')}: <b>${c.tw.toFixed(1)} g</b> (${T('फ्रेम','frame')} ${c.fw.toFixed(1)} g)<br>${T('कुल थ्रस्ट','Total thrust')}: <b>${c.thr} g</b> · ${T('थ्रस्ट:वजन','Thrust:weight')} <b>${c.r.toFixed(1)} : 1</b><br>${T('उड़ान समय','Flight time')}: <b>${c.ft.toFixed(1)} ${T('मिनट','min')}</b><br>${T('कीमत (अंदाज़न)','Cost (approx.)')}: <b>₹${c.cost}</b></p><p><b>${st}</b></p>`+(c.gap<1?`<p class="err">❌ ${T('प्रॉप आपस में टकराएँगे। हाथ लंबे करें','Props will hit each other. Make arms longer')}</p>`:'')+labHi(c)+labBom(c)+labBoard()+`<p class="muted">${T('सारे आँकड़े अनुमानित हैं।','All figures are rough estimates.')}</p>`;labDraw()}
+function labChip(on,t,oc){return `<button onclick="${oc}" style="border:2px solid var(--acc);border-radius:20px;padding:6px 14px;margin:3px 4px 3px 0;font-weight:600;background:${on?'var(--acc)':'transparent'};color:${on?'var(--onacc)':'var(--acc)'}">${t}</button>`}
+function labSl(k,lb,mn,mx,st,u){return `<div style="margin-top:8px"><b>${lb}: <span id="lv_${k}">${D[k]}</span> ${u}</b><input type="range" min="${mn}" max="${mx}" step="${st}" value="${D[k]}" style="padding:0;border:0" oninput="labS('${k}',this.value)"></div>`}
+function labS(k,v){D[k]=+v;var s=document.getElementById('lv_'+k);if(s)s.textContent=v;labAfter()}
+function labSet(k,v){D[k]=v;if(k==='n')D.st=0;if(k==='st'&&v)D.n=2;if(k==='fc'&&v)D.pr=Math.max(D.pr,Math.ceil(v*.71+3.5));if(k==='m'){for(var i=0;i<DB.length;i++){if(DB[i].c===DM[v].c){D.b=i;break}}}render()}
+function labFit(){D.l=Math.min(100,Math.max(10,Math.ceil((DM[D.m].p+2)/(D.st===2?1:2*Math.sin(Math.PI/D.n)))));render()}
+function labHi(c){if(!D.hi)return '';var m=c.m,V=3.7*m.c,hov=D.n*m.a*Math.pow(Math.min(1,c.tw/c.thr),1.5),mx=D.n*m.a,th=Math.min(1,Math.sqrt(c.tw/c.thr)),tn=c.r>1?Math.tan(Math.acos(1/c.r)):0,A=(2*D.l+m.p)/1000*.03,v=c.r>1?Math.sqrt(2*c.tw/1000*9.8*tn/(1.2*A))*3.6:0;
+ return `<b>🔬 ${T('हाई-टेक विश्लेषण','Hi-tech analysis')}</b><p>${T('हॉवर थ्रॉटल','Hover throttle')}: <b>${(th*100).toFixed(0)}%</b></p><div class="bar"><i style="width:${Math.min(100,c.r/4*100)}%"></i></div><p>${T('हॉवर करंट','Hover current')}: <b>${hov.toFixed(1)} A</b> · ${T('पावर','Power')} <b>${(hov*V).toFixed(0)} W</b><br>${T('अधिकतम करंट','Max current')}: <b>${mx.toFixed(0)} A</b> · ${T('ज़रूरी बैटरी रेटिंग','Battery rating needed')} <b>${(mx/(c.b.mah/1000)).toFixed(0)}C</b><br>${T('अधिकतम गति (अनुमान)','Top speed (est.)')}: <b>${v.toFixed(0)} km/h</b><br>${T('प्रिंट','Print')}: ${(c.vol/2.405/1000).toFixed(1)} m ${T('फिलामेंट','filament')}, ~<b>${Math.round(c.vol/4/60)} ${T('मिनट','min')}</b></p>`}
+function labAuto(){var best=null,sv=Object.assign({},D);D.st=0;Object.keys(DM).forEach(function(m){DB.forEach(function(bt,i){if(bt.c!==DM[m].c)return;[2,3,4,6].forEach(function(n){D.n=n;D.m=m;D.b=i;D.l=Math.min(100,Math.max(10,Math.ceil((DM[m].p+2)/(2*Math.sin(Math.PI/n)))));var c=labCalc();if(c.r>=2.2&&c.gap>=1&&(!best||c.ft>best.ft))best={n:n,m:m,b:i,l:D.l,ft:c.ft}})})});
+ if(best){D.n=best.n;D.m=best.m;D.b=best.b;D.l=best.l}else Object.assign(D,sv);render()}
+var PRE=[['🐝 मिनी 2-पंखा','🐝 Mini 2-fan',{n:2,m:'m0802',b:4,l:20,w:6,t:2,pr:10,fc:0,cam:0,hi:0}],['🚁 एडवांस 2-पंखा','🚁 Advanced 2-fan',{n:2,m:'m1103',b:1,l:30,w:8,t:3,pr:16,fc:16,cam:1,hi:1}],['🔹 मिनी क्वाड','🔹 Mini quad',{n:4,m:'m0802',b:0,l:26,w:6,t:2.5,pr:14,fc:0,cam:0,hi:0}],['🏁 रेसर','🏁 Racer',{n:4,m:'m1404',b:2,l:55,w:9,t:3.5,pr:22,fc:20,cam:1,hi:1}]];
+function labPre(i){Object.assign(D,PRE[i][2]);render()}
+function labBom(c){var m=c.m,n=D.n,R=[[T('3D प्रिंटेड फ्रेम','3D-printed frame')+' ('+D.mat+')',1,c.fw,c.fw*1.5],[T('मोटर','Motor')+' '+m.n,n,m.w*n,m.pr*n],[T('प्रॉप','Prop')+' '+m.p+T('मिमी','mm'),n,0,40*n],[T('बैटरी','Battery')+' '+c.b.n,1,c.b.w,c.b.pr],[T('FC+ESC+रिसीवर','FC+ESC+Receiver'),1,m.fc,m.fp+500]];
+ if(D.cam)R.push([T('कैमरा','Camera'),1,3,600]);if(n===2&&!D.st)R.push([T('माइक्रो सर्वो (मोटर झुकाने के लिए)','Micro servo (motor tilt)'),2,3,360]);labAcc().forEach(function(a){R.push([({cam:T('कैमरा पॉड (प्रिंटेड)','Camera pod (printed)'),bat:T('बैटरी ट्रे (प्रिंटेड)','Battery tray (printed)'),sk:T('लैंडिंग स्किड (प्रिंटेड)','Landing skids (printed)')})[a[0]],1,a[1],a[1]*1.5])});R.push([T('स्क्रू + तार','Screws + wires'),1,2,50]);
+ return `<b>🧾 ${T('पार्ट्स लिस्ट','Parts list')}</b><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px">`+R.map(function(r){return `<tr><td>${r[0]}</td><td>×${r[1]}</td><td>${r[2].toFixed(1)}g</td><td>₹${Math.round(r[3])}</td></tr>`}).join('')+`<tr><td colspan="2"><b>${T('कुल','Total')}</b></td><td><b>${c.tw.toFixed(1)}g</b></td><td><b>₹${c.cost}</b></td></tr></table></div>`+(n===2&&!D.st?`<p class="muted">${T('2 पंखे वाले ड्रोन में घुमाव (yaw) सर्वो से मोटर झुकाकर होता है। सर्वो ब्रैकेट फ्रेम में अभी नहीं है।','A 2-fan drone steers yaw by tilting motors with servos. A servo bracket is not in the frame yet.')}</p>`:'')}
+function labPart(k){var M=[];function q(a,b,c,d){M.push([a,b,c],[a,c,d])}
+ function ab(x0,x1,y0,y1,z0,z1){var V=[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];q(V[0],V[3],V[2],V[1]);q(V[4],V[5],V[6],V[7]);q(V[0],V[1],V[5],V[4]);q(V[3],V[7],V[6],V[2]);q(V[0],V[4],V[7],V[3]);q(V[1],V[2],V[6],V[5])}
+ if(k==='cam'){var w=D.cw,h=D.cw*.9;ab(0,w+4,0,18,0,2);ab(0,2,0,18,2,2+h);ab(w+2,w+4,0,18,2,2+h);ab(2,w+2,16,18,2,2+h)}
+ if(k==='bat'){var W=D.bw+4,L=D.bl+4;ab(0,W,0,L,0,2);ab(0,2,0,L,2,10);ab(W-2,W,0,L,2,10);ab(2,W-2,0,2,2,10)}
+ if(k==='sk'){var H=3+D.hl;[0,20].forEach(function(y){ab(0,60,y,y+5,0,3);ab(6,10,y,y+5,3,H);ab(50,54,y,y+5,3,H)})}
+ return M}
+function labVol(M){var s=0;M.forEach(function(f){var a=f[0],b=f[1],c=f[2];s+=a[0]*(b[1]*c[2]-b[2]*c[1])-a[1]*(b[0]*c[2]-b[2]*c[0])+a[2]*(b[0]*c[1]-b[1]*c[0])});return Math.abs(s/6)}
+function labAcc(){var r=[];['cam','bat','sk'].forEach(function(k){if(D.ac[k])r.push([k,labVol(labPart(k))/1000*DMA[D.mat]])});return r}
+function labAc(k){D.ac[k]=D.ac[k]?0:1;render()}
+function labScore(c){return c.r>=1.3&&c.gap>=1?Math.max(0,Math.round(c.ft*20+Math.min(c.r,4)*15+10-c.cost/200)):0}
+function labSave(){var n=prompt(T('अपना नाम','Your name'));if(!n)return;try{var L=JSON.parse(localStorage.getItem('dscores')||'[]');L.push({n:n,s:labScore(labCalc())});L.sort(function(a,b){return b.s-a.s});localStorage.setItem('dscores',JSON.stringify(L.slice(0,10)))}catch(e){}labAfter()}
+function labBoard(){var L=[];try{L=JSON.parse(localStorage.getItem('dscores')||'[]')}catch(e){}return `<b>🏆 ${T('आपका स्कोर','Your score')}: ${labScore(labCalc())}</b> <button class="lang" onclick="labSave()">💾 ${T('सेव','Save')}</button>`+(L.length?'<ol>'+L.slice(0,5).map(function(x){return `<li>${String(x.n).replace(/</g,'&lt;')}: ${x.s}</li>`}).join('')+'</ol>':'')}
+function labView(){var m=DM[D.m],mm=T('मिमी','mm');
+ return `<div class="card"><b>${T('मोड','Mode')}</b><br>`+labChip(!D.hi,'🙂 '+T('आसान','Easy'),"labSet('hi',0)")+labChip(D.hi,'🚀 '+T('हाई-टेक','Hi-tech'),"labSet('hi',1)")+`<br><b>🏭 ${T('पार्ट्स फैक्ट्री: अपने नाप से खुद बनाएँ','Parts factory: build to your own sizes')}</b><br>`+[['cam','📷 '+T('कैमरा पॉड','Camera pod')],['bat','🔋 '+T('बैटरी ट्रे','Battery tray')],['sk','🦶 '+T('लैंडिंग स्किड','Landing skids')]].map(function(a){return labChip(D.ac[a[0]],a[1],`labAc('${a[0]}')`)+`<button class="lang" onclick="labDl(labPart('${a[0]}'),'${a[0]}.stl')">⬇ STL</button> `}).join('')+labSl('cw',T('कैमरा की चौड़ाई','Camera width'),8,30,1,T('मिमी','mm'))+labSl('bl',T('बैटरी की लंबाई','Battery length'),20,80,1,T('मिमी','mm'))+labSl('bw',T('बैटरी की चौड़ाई','Battery width'),8,35,1,T('मिमी','mm'))+labSl('hl',T('स्किड की ऊँचाई','Skid height'),10,40,1,T('मिमी','mm'))+`<p class="muted">${T('चुना हुआ पार्ट वजन और पार्ट्स लिस्ट में जुड़ता है। जिप-टाई या गोंद से लगाएँ। कैमरा उड़ाते समय दूसरों की निजता और भारत के ड्रोन नियम 2021 का पालन करें।','A chosen part adds to weight and the parts list. Fit with zip ties or glue. When flying a camera, respect others\' privacy and local drone rules.')}</p></div><div class="card"><b>${T('छोटा ड्रोन बनाएँ और 3D प्रिंट करें','Build a small drone and 3D print it')}</b><p class="muted">${T('फ्रेम डिज़ाइन करें, उड़ान का अंदाज़ा देखें, फिर STL फ़ाइल डाउनलोड करें।','Design the frame, check the flight estimate, then download the STL file.')}</p></div>`+
+ `<canvas id="labCv" width="520" height="340" style="width:100%;border-radius:12px;background:var(--card);box-shadow:0 1px 4px rgba(0,0,0,.15)"></canvas>`+labSl('v',T('घुमाएँ','Rotate'),0,360,5,'°')+
+ `<div class="card"><b>${T('बनावट','Layout')}</b><br>`+[['🛸 मल्टी-रोटर','🛸 Multirotor',0],['🚁 टैंडम हेली (2 रोटर)','🚁 Tandem heli (2 rotors)',1],['🚁 मेन+टेल हेली','🚁 Main+tail heli',2]].map(function(a){return labChip(D.st===a[2],T(a[0],a[1]),`labSet('st',${a[2]})`)}).join('')+`<br><b>${T('हाथों की संख्या','Number of arms')}</b><br>`+[2,3,4,6].map(function(k){return labChip(D.n===k,k,`labSet('n',${k})`)}).join('')+
+ `<br><b>${T('मोटर','Motor')}</b> <span class="muted">(${T('प्रॉप','prop')} ${m.p} ${mm})</span><br>`+Object.keys(DM).map(function(k){return labChip(D.m===k,DM[k].n,`labSet('m','${k}')`)}).join('')+
+ `<br><b>${T('बैटरी','Battery')}</b><br>`+DB.map(function(b,i){return b.c===m.c?labChip(D.b===i,b.n,`labSet('b',${i})`):''}).join('')+
+ `<br><b>${T('प्रिंट मटेरियल','Print material')}</b><br>`+Object.keys(DMA).map(function(k){return labChip(D.mat===k,k,`labSet('mat','${k}')`)}).join('')+labChip(D.cam,'📷 '+T('कैमरा','Camera'),`labSet('cam',${D.cam?0:1})`)+labChip(D.duct,'🛡️ '+T('डक्टेड (सिनेहूप)','Ducted (cinewhoop)'),`labSet('duct',${D.duct?0:1})`)+
+ labSl('l',T('हाथ की लंबाई','Arm length'),10,100,1,mm)+labSl('w',T('हाथ की चौड़ाई','Arm width'),5,14,1,mm)+labSl('t',T('मोटाई','Thickness'),2,5,.5,mm)+labSl('pr',T('बीच की प्लेट की त्रिज्या','Centre plate radius'),8,30,1,mm)+
+ (D.hi?`<br><b>${T('FC माउंट (स्क्रू पोस्ट)','FC mount (screw posts)')}</b><br>`+[0,16,20].map(function(k){return labChip(D.fc===k,k?k+'×'+k:T('नहीं','None'),`labSet('fc',${k})`)}).join('')+`<button class="btn" onclick="labAuto()">🤖 ${T('ऑटो-ऑप्टिमाइज़: सबसे लंबी उड़ान वाला डिज़ाइन','Auto-optimise: longest-flight design')}</button>`:'')+`<button class="btn ghost" onclick="labFit()">📐 ${T('प्रॉप के हिसाब से लंबाई सेट करें','Auto-fit arm length to props')}</button></div>`+
+ `<div class="card" id="labOut"></div><button class="btn" onclick="labSTL()">⬇️ ${T('STL डाउनलोड करें (3D प्रिंट)','Download STL (3D print)')}</button>`+
+ `<button class="btn" style="background:var(--good)" onclick="go('fly')">🎮 ${T('अपना ड्रोन उड़ाओ','Fly your drone')}</button><div class="card muted">${T('प्रिंट सेटिंग: सपाट लिटाकर, बिना सपोर्ट के, लेयर 0.2 मिमी, इन्फ़िल 100%। स्लाइसर में सब हिस्से जुड़ जाते हैं। मोटर, बैटरी और कंट्रोलर अलग से लगाने होंगे।','Print settings: lay flat, no supports, 0.2 mm layers, 100% infill. The slicer merges the overlapping parts. Motors, battery and controller are fitted separately.')}</div>`}
+
+// ===== ड्रोन गेम / Fly game: डिज़ाइन के आँकड़ों से उड़ता है =====
+var G=null,GR=0,GL=0;
+function flyView(){return `<div class="card"><b>🎮 ${T('अपना ड्रोन उड़ाओ','Fly your drone')}</b><p class="muted">${T('स्क्रीन दबाए रखो = ऊपर, छोड़ो = नीचे। गेट पार करो, 🔋 और ⭐ उठाओ। 🛡️ डक्टेड ड्रोन एक टक्कर झेल लेता है। भारी ड्रोन या कम थ्रस्ट सुस्त उड़ता है।','Hold = up, release = down. Pass the gates, grab 🔋 and ⭐. A ducted drone survives one hit. Heavy or low-thrust drones feel sluggish.')}</p></div><canvas id="flyCv" width="360" height="480" style="width:100%;border-radius:12px;background:#0b1530;touch-action:none"></canvas><button class="btn" onclick="flyInit()">▶ ${T('नया खेल','New game')}</button><button class="btn ghost" onclick="go('lab')">🛠️ ${T('डिज़ाइन बदलो','Edit design')}</button>`}
+function flyInit(){var cv=document.getElementById('flyCv');if(!cv)return;var c=labCalc();
+ G={c:c,y:240,v:0,th:1/Math.max(c.r,1),x:0,t:0,bat:100,sc:0,star:0,sh:D.duct?1:0,inv:0,hold:0,ob:[],over:c.r>=1?0:2,best:0,sp:110+Math.min(c.r,4)*25,life:Math.min(70,Math.max(15,c.ft*7))};
+ try{G.best=+localStorage.getItem('dbest')||0}catch(e){}
+ cv.onpointerdown=function(){G.hold=1;if(G.over===1)flyInit()};cv.onpointerup=cv.onpointerleave=function(){G.hold=0};
+ document.onkeydown=function(e){if(tab==='fly'&&G&&(e.key===' '||e.key==='ArrowUp')){G.hold=1;e.preventDefault()}};document.onkeyup=function(){if(G)G.hold=0};
+ if(!GR){GR=1;requestAnimationFrame(flyLoop)}}
+function flyLoop(ts){var cv=document.getElementById('flyCv');if(tab!=='fly'||!cv||!G){GR=0;return}var dt=Math.min(.033,(ts-GL)/1000||.016);GL=ts;flyStep(dt);flyDraw(cv.getContext('2d'));requestAnimationFrame(flyLoop)}
+function flyStep(dt){var g=G,c=g.c;if(g.over)return;g.t+=dt;g.bat-=dt/g.life*100;g.inv=Math.max(0,g.inv-dt);
+ g.th+=((g.hold?Math.min(1,1.6/c.r):.4/c.r)-g.th)*Math.min(1,dt*6);g.v+=(c.r*g.th-1)*420*dt;g.v*=1-.8*dt;g.y-=g.v*dt;g.x+=g.sp*dt;
+ if(g.y<16){g.y=16;g.v=0}
+ while(!g.ob.length||g.ob[g.ob.length-1].x<g.x+420){var l=g.ob.length?g.ob[g.ob.length-1].x+230:g.x+500,n=g.ob.length;g.ob.push({x:l,gy:130+Math.random()*220,gap:Math.max(120,170-n*1.5),p:0,s:0,k:n%4===3?1:0})}
+ g.ob=g.ob.filter(function(o){return o.x>g.x-60});
+ var hit=g.y>464||g.bat<=0;
+ g.ob.forEach(function(o){var dx=o.x-(g.x+90);if(Math.abs(dx)<18&&(g.y<o.gy-o.gap/2+8||g.y>o.gy+o.gap/2-8))hit=hit||(g.inv<=0?2:0);
+  if(!o.s&&Math.abs(dx)<16&&Math.abs(g.y-o.gy)<20){o.s=1;if(o.k)g.bat=Math.min(100,g.bat+25);else g.star++}
+  if(!o.p&&dx<-18){o.p=1;g.sc++}});
+ if(hit===2&&g.sh){g.sh=0;g.inv=1.2}else if(hit){g.over=1;var t=g.sc*10+g.star*5;if(t>g.best){g.best=t;try{localStorage.setItem('dbest',t)}catch(e){}}}}
+function flyDraw(x){var g=G,W=360,H=480,t=g.sc*10+g.star*5;x.fillStyle='#0b1530';x.fillRect(0,0,W,H);x.fillStyle='rgba(255,255,255,.5)';
+ for(var i=0;i<30;i++)x.fillRect((((i*97-g.x*.2)%W)+W)%W,(i*53)%H,2,2);
+ x.fillStyle='#1f7a4d';x.fillRect(0,H-12,W,12);
+ g.ob.forEach(function(o){var sx=o.x-g.x;if(sx<-40||sx>W+40)return;x.fillStyle='#2fa36b';x.fillRect(sx-18,0,36,o.gy-o.gap/2);x.fillRect(sx-18,o.gy+o.gap/2,36,H);
+  if(!o.s){x.font='20px sans-serif';x.fillText(o.k?'🔋':'⭐',sx-10,o.gy+7)}});
+ var s=14+D.l*.12,w=s*.9*Math.abs(Math.cos(g.t*40));
+ if(!(g.inv>0&&Math.floor(g.t*10)%2)){x.fillStyle='#B58CFF';x.beginPath();x.ellipse(90,g.y,s,s*.4,0,0,7);x.fill();x.fillStyle='#ddd';
+  if(D.st===2){x.fillRect(90-s*1.1-w*.2,g.y-s*.5,s*2.2*Math.abs(Math.cos(g.t*40))+2,2);x.fillRect(90-s*2.3,g.y-3,s*1.4,3);x.fillRect(90-s*2.4,g.y-s*.5,3,s*.8)}
+  else{x.fillRect(90-s*.7-w,g.y-s*.55,2*w,2);x.fillRect(90+s*.7-w,g.y-s*.55,2*w,2)}
+  if(D.cam){x.fillStyle='#111';x.beginPath();x.arc(90+s*.8,g.y,3,0,7);x.fill()}}
+ if(g.sh){x.strokeStyle='rgba(120,220,255,.8)';x.lineWidth=2;x.beginPath();x.arc(90,g.y,s+8,0,7);x.stroke()}
+ x.fillStyle='#fff';x.font='bold 15px sans-serif';x.fillText('⭐'+g.star+'  🎯'+g.sc+'  🏆'+Math.max(g.best,t),10,22);
+ x.strokeStyle='#fff';x.strokeRect(10,30,120,8);x.fillStyle=g.bat<25?'#ff6b5b':'#4fd1a5';x.fillRect(10,30,Math.max(0,g.bat)*1.2,8);
+ if(g.over){x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,0,W,H);x.fillStyle='#fff';x.font='bold 22px sans-serif';x.textAlign='center';
+  x.fillText(g.over===2?T('यह ड्रोन उड़ नहीं सकता','This drone cannot fly'):g.bat<=0?T('बैटरी खत्म!','Battery empty!'):T('टक्कर! गेम खत्म','Crash! Game over'),W/2,200);x.font='16px sans-serif';
+  x.fillText(g.over===2?T('डिज़ाइन में थ्रस्ट बढ़ाओ या वजन घटाओ','Add thrust or cut weight'):T('स्कोर ','Score ')+t+T(' · दबाकर फिर खेलो',' · tap to retry'),W/2,235);x.textAlign='left'}}
 var MODULES=[
  {id:'quiz',icon:'📝',t:['क्विज़','Quiz'],view:quiz},
  {id:'exam',icon:'🏆',t:['परीक्षा','Exam'],view:function(){return examView()||soon('मासिक इनाम परीक्षा','Monthly prize exam',['सिर्फ़ 18+ के लिए, मुफ़्त एंट्री|18+ only, free entry','नतीजा और UPI इनाम 2 दिन बाद|Result and UPI prize after 2 days','AI से नकल की जाँच, 2 दिन बाद डेटा डिलीट|AI cheating check, data deleted after 2 days','कोई वॉलेट या विड्रॉ नहीं|No wallet, no withdrawal'])}},
  {id:'games',icon:'🎮',t:['गेम्स','Games'],view:ludoView},
- {id:'lab',icon:'🛠️',t:['डिज़ाइन लैब','Design Lab'],view:function(){return soon('डिज़ाइन लैब','Design Lab',['हेलीकॉप्टर, नाव, बाइक, कार, बैटरी, खिलौने बनाना सीखें|Learn to design helicopters, boats, bikes, cars, batteries, toys','सबसे अच्छे डिज़ाइन को 2 दिन बाद इनाम|Prize for the best design after 2 days'])}},
+ {id:'lab',icon:'🛠️',t:['डिज़ाइन लैब','Design Lab'],view:labView},
+ {id:'fly',icon:'🚁',t:['उड़ाओ','Fly'],view:flyView},
  {id:'chat',icon:'💬',t:['चैट','Chat'],view:chat}
 ];
 
@@ -1133,7 +1245,7 @@ function render(){
  document.getElementById('ttl').textContent=T('ज्ञान ऐप','Gyan App');
  document.getElementById('lg').textContent=lang==='h'?'English':'हिंदी';
  var m=MODULES.filter(function(x){return x.id===tab})[0];
- document.getElementById('app').innerHTML=m.view();if(tab==='games')ludoAfter();
+ document.getElementById('app').innerHTML=m.view();if(tab==='games')ludoAfter();if(tab==='lab')labAfter();if(tab==='fly')flyInit();
  var live=tab==='quiz'&&S.qs&&S.qs.length&&!S.done&&!S.locked;if(live){if(!TM){left=40;TM=setInterval(tick,1000)}}else{clearInterval(TM);TM=null;left=40}
  document.getElementById('nav').innerHTML=MODULES.map(function(x){return '<button class="'+(x.id===tab?'on':'')+'" onclick="go(\''+x.id+'\')"><span>'+x.icon+'</span>'+(lang==='h'?x.t[0]:x.t[1])+'</button>'}).join('')}
 function go(id){if(id!==tab){try{history.pushState({},'')}catch(e){}}tab=id;chatErr='';render()}
