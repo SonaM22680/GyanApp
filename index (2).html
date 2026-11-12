@@ -81,6 +81,8 @@ nav{background:var(--hd);border-top:0}nav button{color:rgba(255,255,255,.7)}nav 
 var lang='h', tab='quiz';
 var T=function(h,e){return lang==='h'?h:e};
 var pick=function(s){var p=String(s).split('|');return lang==='h'?p[0]:(p[1]||p[0])};
+var LNAME='';
+function note(m){var d=document.getElementById('toast');if(!d){d=document.createElement('div');d.id='toast';d.setAttribute('role','status');d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));max-width:90%;background:var(--hd);color:#fff;padding:10px 18px;border-radius:20px;font-weight:600;font-size:15px;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.35);text-align:center';document.body.appendChild(d)}d.textContent=m;d.style.display='block';clearTimeout(d._t);d._t=setTimeout(function(){d.style.display='none'},2500)}
 
 // ===== प्रश्न बैंक / Question bank: नए सवाल यहाँ जोड़ें =====
 var QUESTIONS=[
@@ -996,11 +998,11 @@ function startPoll(){clearInterval(poll);poll=setInterval(function(){if(!G)retur
 var L=window.LudoGame={
  start:function(n){G=fresh(n===2?['red','yellow']:COL.slice(),'offline');gameUI()},
  create:function(){pname=$('ldn').value||'Player';var code=Math.random().toString(36).slice(2,6).toUpperCase();G=fresh(['red'],'online');G.code=code;G.names.red=pname;me='red';save();gameUI();startPoll()},
- join:function(){pname=$('ldn').value||'Player';var code=($('ldc').value||'').trim().toUpperCase();if(!code)return;G={code:code};fb('GET').then(function(o){if(!o){alert(tt('रूम नहीं मिला','Room not found'));G=null;return}
-  var g=fresh(['red'],'online');g.code=code;G=g;apply(o);var free=COL.filter(function(c){return G.pl.indexOf(c)<0})[0];if(!free){alert(tt('रूम भरा है','Room is full'));G=null;return}
-  G.pl.push(free);G.names[free]=pname;me=free;save();gameUI();startPoll()}).catch(function(){G=null;alert(tt('नेटवर्क एरर','Network error'))})},
+ join:function(){pname=$('ldn').value||'Player';var code=($('ldc').value||'').trim().toUpperCase();if(!code)return;G={code:code};fb('GET').then(function(o){if(!o){note(tt('रूम नहीं मिला','Room not found'));G=null;return}
+  var g=fresh(['red'],'online');g.code=code;G=g;apply(o);var free=COL.filter(function(c){return G.pl.indexOf(c)<0})[0];if(!free){note(tt('रूम भरा है','Room is full'));G=null;return}
+  G.pl.push(free);G.names[free]=pname;me=free;save();gameUI();startPoll()}).catch(function(){G=null;note(tt('नेटवर्क एरर','Network error'))})},
  exit:function(){clearInterval(poll);G=null;ludoAfter()},
- share:function(){var t=tt('Ludo खेलो! रूम कोड: ','Play Ludo! Room code: ')+G.code;if(navigator.share)navigator.share({text:t}).catch(function(){});else if(navigator.clipboard)navigator.clipboard.writeText(t)},
+ share:function(){var t=tt('Ludo खेलो! रूम कोड: ','Play Ludo! Room code: ')+G.code;if(navigator.share)navigator.share({text:t}).catch(function(){});else if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){note(tt('कोड कॉपी हो गया','Code copied'))}).catch(function(){note(t)});else note(t)},
  roll:function(){if(!G||G.rolled||G.win||!mine())return;G.d=1+Math.floor(Math.random()*6);G.rolled=true;var c=cur(),l=movList(c);save();draw();
   if(!l.length)setTimeout(function(){G.rolled=false;G.turn=(G.turn+1)%G.pl.length;save();draw()},900);
   else if(l.length===1||l.every(function(i){return G.t[c][i]===G.t[c][l[0]]}))setTimeout(function(){L.mv(c,l[0])},400)},
@@ -1190,8 +1192,8 @@ function labVol(M){var s=0;M.forEach(function(f){var a=f[0],b=f[1],c=f[2];s+=a[0
 function labAcc(){var r=[];['cam','bat','sk'].forEach(function(k){if(D.ac[k])r.push([k,labVol(labPart(k))/1000*DMA[D.mat]])});return r}
 function labAc(k){D.ac[k]=D.ac[k]?0:1;render()}
 function labScore(c){return c.r>=1.3&&c.gap>=1?Math.max(0,Math.round(c.ft*20+Math.min(c.r,4)*15+10-c.cost/200)):0}
-function labSave(){var n=prompt(T('अपना नाम','Your name'));if(!n)return;try{var L=JSON.parse(localStorage.getItem('dscores')||'[]');L.push({n:n,s:labScore(labCalc())});L.sort(function(a,b){return b.s-a.s});localStorage.setItem('dscores',JSON.stringify(L.slice(0,10)))}catch(e){}labAfter()}
-function labBoard(){var L=[];try{L=JSON.parse(localStorage.getItem('dscores')||'[]')}catch(e){}return `<b>🏆 ${T('आपका स्कोर','Your score')}: ${labScore(labCalc())}</b> <button class="lang" onclick="labSave()">💾 ${T('सेव','Save')}</button>`+(L.length?'<ol>'+L.slice(0,5).map(function(x){return `<li>${String(x.n).replace(/</g,'&lt;')}: ${x.s}</li>`}).join('')+'</ol>':'')}
+function labSave(){var n=(LNAME||'').trim().slice(0,20);if(!n){note(T('पहले अपना नाम लिखें','Enter your name first'));return}try{var L=JSON.parse(localStorage.getItem('dscores')||'[]');L.push({n:n,s:labScore(labCalc())});L.sort(function(a,b){return b.s-a.s});localStorage.setItem('dscores',JSON.stringify(L.slice(0,10)))}catch(e){}labAfter()}
+function labBoard(){var L=[];try{L=JSON.parse(localStorage.getItem('dscores')||'[]')}catch(e){}return `<b>🏆 ${T('आपका स्कोर','Your score')}: ${labScore(labCalc())}</b> <br><input id="lsn" maxlength="20" placeholder="${T('अपना नाम','Your name')}" value="${String(LNAME).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" oninput="LNAME=this.value" style="margin:6px 0"> <button class="lang" onclick="labSave()">💾 ${T('सेव','Save')}</button>`+(L.length?'<ol>'+L.slice(0,5).map(function(x){return `<li>${String(x.n).replace(/</g,'&lt;')}: ${x.s}</li>`}).join('')+'</ol>':'')}
 function labViewFull(){var m=DM[D.m],mm=T('मिमी','mm');
  return `<div class="card"><b>${T('मोड','Mode')}</b><br>`+labChip(!D.hi,'🙂 '+T('आसान','Easy'),"labSet('hi',0)")+labChip(D.hi,'🚀 '+T('हाई-टेक','Hi-tech'),"labSet('hi',1)")+`<br><b>🏭 ${T('पार्ट्स फैक्ट्री: अपने नाप से खुद बनाएँ','Parts factory: build to your own sizes')}</b><br>`+[['cam','📷 '+T('कैमरा पॉड','Camera pod')],['bat','🔋 '+T('बैटरी ट्रे','Battery tray')],['sk','🦶 '+T('लैंडिंग स्किड','Landing skids')]].map(function(a){return labChip(D.ac[a[0]],a[1],`labAc('${a[0]}')`)+`<button class="lang" onclick="labDl(labPart('${a[0]}'),'${a[0]}.stl')">⬇ STL</button> `}).join('')+labSl('cw',T('कैमरा की चौड़ाई','Camera width'),8,30,1,T('मिमी','mm'))+labSl('bl',T('बैटरी की लंबाई','Battery length'),20,80,1,T('मिमी','mm'))+labSl('bw',T('बैटरी की चौड़ाई','Battery width'),8,35,1,T('मिमी','mm'))+labSl('hl',T('स्किड की ऊँचाई','Skid height'),10,40,1,T('मिमी','mm'))+`<p class="muted">${T('चुना हुआ पार्ट वजन और पार्ट्स लिस्ट में जुड़ता है। जिप-टाई या गोंद से लगाएँ। कैमरा उड़ाते समय दूसरों की निजता और भारत के ड्रोन नियम 2021 का पालन करें।','A chosen part adds to weight and the parts list. Fit with zip ties or glue. When flying a camera, respect others\' privacy and local drone rules.')}</p></div><div class="card"><b>${T('छोटा ड्रोन बनाएँ और 3D प्रिंट करें','Build a small drone and 3D print it')}</b><p class="muted">${T('फ्रेम डिज़ाइन करें, उड़ान का अंदाज़ा देखें, फिर STL फ़ाइल डाउनलोड करें।','Design the frame, check the flight estimate, then download the STL file.')}</p></div>`+
  `<canvas id="labCv" width="520" height="340" style="width:100%;border-radius:12px;background:var(--card);box-shadow:0 1px 4px rgba(0,0,0,.15)"></canvas>`+labSl('v',T('घुमाएँ','Rotate'),0,360,5,'°')+
@@ -1209,11 +1211,23 @@ function labOpen(v){try{history.pushState({},'')}catch(e){}LABOPEN=v;window.scro
 function labView(){
  if(LABOPEN)return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><button onclick="labOpen(0)" aria-label="Back" style="border:1px solid var(--line);background:var(--card);border-radius:12px;padding:6px 16px;font-size:22px;font-weight:800;line-height:1">&larr;</button><b>🛸 '+T('ड्रोन प्रोग्राम','Drone program')+'</b></div>'+labViewFull();
  return '<div class="card"><h2>'+T('डिज़ाइन लैब','Design Lab')+'</h2><p class="muted">'+T('एक चुनें, प्रोग्राम अगले पेज पर खुलेगा।','Pick one. Its program opens on the next page.')+'</p></div>'+navRow('🛸',T('ड्रोन','Drone'),T('फ्रेम डिज़ाइन, उड़ान जाँच, 3D प्रिंट (STL)','Frame design, flight check, 3D print (STL)'),'labOpen(1)')}
+
+function helpView(){
+ var items=[['📝',T('क्विज़','Quiz'),T('2000+ सवाल, श्रेणी चुनें, हर सवाल पर टाइमर और व्याख्या।','2000+ questions by category, a timer on every question, and explanations.')],
+ ['🏆',T('परीक्षा','Exam'),T('SSC, रेलवे, बैंक, UP पुलिस, UP SI, UP TET के छोटे मॉक टेस्ट।','Short mock tests for SSC, Railway, Bank, UP Police, UP SI and UP TET.')],
+ ['🎮',T('गेम्स','Games'),T('Ludo: एक फ़ोन पर 2 या 4 खिलाड़ी। ऑनलाइन रूम के लिए Firebase URL चाहिए।','Ludo: 2 or 4 players on one phone. Online rooms need a Firebase URL.')],
+ ['🛠️',T('डिज़ाइन लैब','Design Lab'),T('ड्रोन फ्रेम डिज़ाइन करें, पार्ट्स लिस्ट देखें, STL डाउनलोड करके 3D प्रिंट करें।','Design a drone frame, see the parts list, download the STL and 3D print it.')]];
+ return '<div class="card"><h2>ℹ️ '+T('ऐप के बारे में','About the app')+'</h2><p class="muted">'+T('ज्ञान ऐप: हिंदी और English में क्विज़, परीक्षा, गेम और डिज़ाइन लैब, सब एक ही फ़ाइल में।','Gyan App: quizzes, exams, a game and a Design Lab in Hindi and English, all in one file.')+'</p></div>'+
+ items.map(function(r){return '<div class="row" style="text-align:left"><div class="ic">'+r[0]+'</div><div class="tt"><b>'+r[1]+'</b><small>'+r[2]+'</small></div></div>'}).join('')+
+ '<div class="card"><b>'+T('कैसे इस्तेमाल करें','How to use')+'</b><ul><li>'+T('ऊपर दाएँ कोने के बटन से भाषा बदलें।','Switch language with the button at the top right.')+'</li><li>'+T('नीचे के बार से टैब बदलें।','Change sections from the bar at the bottom.')+'</li><li>'+T('फ़ोन का बैक बटन पिछली स्क्रीन पर ले जाता है।','The phone back button returns to the previous screen.')+'</li></ul></div>'+
+ '<div class="card muted">'+T('डिज़ाइन लैब के आँकड़े अनुमानित हैं। कैमरा ड्रोन उड़ाते समय दूसरों की निजता और अपने देश के ड्रोन नियमों का पालन करें।','Design Lab numbers are estimates. When flying a camera drone, respect others\' privacy and your country\'s drone rules.')+'</div>'}
+
 var MODULES=[
  {id:'quiz',icon:'📝',t:['क्विज़','Quiz'],view:quiz},
  {id:'exam',icon:'🏆',t:['परीक्षा','Exam'],view:function(){return examView()||soon('मासिक इनाम परीक्षा','Monthly prize exam',['सिर्फ़ 18+ के लिए, मुफ़्त एंट्री|18+ only, free entry','नतीजा और UPI इनाम 2 दिन बाद|Result and UPI prize after 2 days','AI से नकल की जाँच, 2 दिन बाद डेटा डिलीट|AI cheating check, data deleted after 2 days','कोई वॉलेट या विड्रॉ नहीं|No wallet, no withdrawal'])}},
  {id:'games',icon:'🎮',t:['गेम्स','Games'],view:ludoView},
- {id:'lab',icon:'🛠️',t:['डिज़ाइन लैब','Design Lab'],view:labView}
+ {id:'lab',icon:'🛠️',t:['डिज़ाइन लैब','Design Lab'],view:labView},
+ {id:'help',icon:'ℹ️',t:['जानकारी','About'],view:helpView}
 ];
 
 function render(){
