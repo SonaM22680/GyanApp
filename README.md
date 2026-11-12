@@ -1,4 +1,4 @@
-ज्ञान ऐप / Gyan App
+# ज्ञान ऐप / Gyan App
 
 हिंदी + English में बना एक ही फ़ाइल (`index.html`) का ऐप: क्विज़, मॉक टेस्ट, नोट्स, Ludo गेम और ड्रोन डिज़ाइन लैब।
 A single-file Hindi + English app: quizzes, mock tests, notes, a Ludo game and a drone Design Lab.
@@ -14,7 +14,6 @@ No install, build step or server needed. Open `index.html` and it runs.
 | 🏆 परीक्षा / Exam | मासिक इनाम परीक्षा की शर्तें और सहमति। परीक्षा खुद अभी "जल्द शुरू होगी" |
 | 🎮 गेम्स / Games | Ludo: एक फ़ोन पर 2 या 4 खिलाड़ी (ऑफ़लाइन), या रूम कोड से ऑनलाइन (Firebase चाहिए) |
 | 🛠️ डिज़ाइन लैब / Design Lab | ड्रोन फ्रेम डिज़ाइन, वज़न और उड़ान का अंदाज़ा, पार्ट्स लिस्ट और 3D प्रिंट के लिए STL डाउनलोड |
-| ℹ️ जानकारी / About | ऐप का छोटा परिचय और इस्तेमाल का तरीका |
 
 ## क्विज़ टैब में क्या है
 
@@ -36,7 +35,9 @@ No install, build step or server needed. Open `index.html` and it runs.
 1. `index.html` को ब्राउज़र में खोलें, या
 2. GitHub Pages, Netlify, Vercel जैसी किसी स्टैटिक होस्टिंग पर अपलोड करें।
 
-GitHub Pages के लिए: Repo की Settings → Pages → Branch `main` चुनें → Save। थोड़ी देर में ऐप का लिंक मिल जाएगा।
+GitHub Pages के लिए: Repo की Settings → Pages → Branch `main` और `/ (root)` चुनें → Save। थोड़ी देर में ऐप का लिंक मिल जाएगा।
+
+> ध्यान दें: ऐप की फ़ाइल का नाम बिल्कुल `index.html` होना चाहिए। `index (3).html` जैसे नाम पर लिंक खोलने से ऐप की जगह README का पेज दिखता है।
 
 फ़ॉन्ट (Kalam) Google Fonts से आता है। इंटरनेट न हो तो ऐप सिस्टम फ़ॉन्ट से चलता रहता है।
 
