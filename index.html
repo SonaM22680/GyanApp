@@ -959,32 +959,14 @@ function examView(){
  return '<div class="card"><h2>'+T('मासिक इनाम परीक्षा: शर्तें','Monthly prize exam: conditions')+'</h2><ul>'+L.map(function(i){return '<li>'+pick(i)+'</li>'}).join('')+'</ul><p><b>'+T('जो इन शर्तों को मानता हो, वही परीक्षा दे। अन्यथा परीक्षा न दे।','Take the exam only if you accept these conditions. Otherwise do not take it.')+'</b></p><label><input type="checkbox" '+(agreed?'checked ':'')+'onchange="agreed=this.checked;render()" style="width:auto"> '+T('मैं सभी शर्तें मानता/मानती हूँ','I accept all the conditions')+'</label>'+(agreed?'<p><b>'+T('आपकी सहमति दर्ज हुई। परीक्षा जल्द शुरू होगी।','Your consent is noted. The exam will start soon.')+'</b></p>':'')+'</div>'}
 // ===== LUDO (Games tab) =====
 (function(){
-var FIREBASE_DB_URL="https://gyanapp-4a405-default-rtdb.firebaseio.com";var FIREBASE_API_KEY="AIzaSyAppeMI5TQWVtRz8Jd5VCinRytm9tdyLTk"; /* Firebase Web API Key: login/signup ke liye */ // online ke liye Firebase Realtime DB URL yaha daalein, jaise "https://xyz-default-rtdb.firebaseio.com"
+var FIREBASE_DB_URL="https://gyanapp-4a405-default-rtdb.firebaseio.com"; // Online rooms use Firebase Realtime Database; no account required.
 var P="6-1,6-2,6-3,6-4,6-5,5-6,4-6,3-6,2-6,1-6,0-6,0-7,0-8,1-8,2-8,3-8,4-8,5-8,6-9,6-10,6-11,6-12,6-13,6-14,7-14,8-14,8-13,8-12,8-11,8-10,8-9,9-8,10-8,11-8,12-8,13-8,14-8,14-7,14-6,13-6,12-6,11-6,10-6,9-6,8-5,8-4,8-3,8-2,8-1,8-0,7-0,6-0".split(',');
 var H={red:"7-1,7-2,7-3,7-4,7-5".split(','),green:"1-7,2-7,3-7,4-7,5-7".split(','),yellow:"7-13,7-12,7-11,7-10,7-9".split(','),blue:"13-7,12-7,11-7,10-7,9-7".split(',')};
 var OFF={red:0,green:13,yellow:26,blue:39},SAFE=[0,8,13,21,26,34,39,47],COL=['red','green','yellow','blue'];
 var NM={red:['RED','लाल'],green:['GREEN','हरा'],yellow:['YELLOW','पीला'],blue:['BLUE','नीला']};
 var G=null,me=null,poll=null,pname='Player',RL=0,MV=0;
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-var AU=null,AM='in',SND=true,AC=null,IDT='https://identitytoolkit.googleapis.com/v1/accounts:';
-try{AU=JSON.parse(localStorage.getItem('gy_auth')||'null')}catch(e){}
-if(AU&&AU.name)pname=AU.name;
-function aSave(){try{if(AU)localStorage.setItem('gy_auth',JSON.stringify(AU));else localStorage.removeItem('gy_auth')}catch(e){}}
-function aPost(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json()}).then(function(j){if(j.error)throw new Error(j.error.message);return j})}
-function aSet(j,n){AU={uid:j.localId,email:j.email,name:n||j.displayName||String(j.email||'Player').split('@')[0],tok:j.idToken,ref:j.refreshToken,exp:Date.now()+(+j.expiresIn||3600)*1000};pname=AU.name;aSave()}
-function aErr(x){var m=String(x&&x.message||x);
- if(/EMAIL_EXISTS/.test(m))return tt('यह ईमेल पहले से है, लॉगिन करें','Email already used, please log in');
- if(/WEAK/.test(m))return tt('पासवर्ड कम से कम 6 अक्षर का रखें','Password must be 6+ characters');
- if(/INVALID_EMAIL/.test(m))return tt('ईमेल सही नहीं है','Invalid email');
- if(/TOO_MANY/.test(m))return tt('बहुत कोशिशें हो गईं, बाद में करें','Too many tries, try later');
- if(/INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND|INVALID_CREDENTIAL/.test(m))return tt('ईमेल या पासवर्ड गलत है','Wrong email or password');
- if(/API key not valid|API_KEY|INVALID_API/i.test(m))return tt('API Key गलत है। Firebase Project settings से दोबारा कॉपी करें।','API key is wrong. Copy it again from Firebase Project settings.');
- if(/OPERATION_NOT_ALLOWED/.test(m))return tt('Firebase में Email/Password साइन-इन चालू करें','Enable Email/Password sign-in in Firebase');
- if(/referer|blocked|PERMISSION|not been used|disabled/i.test(m))return tt('Firebase ने रिक्वेस्ट रोकी: ','Firebase blocked the request: ')+m.slice(0,90);
- if(/Failed to fetch|NetworkError|Load failed|network/i.test(m))return tt('नेटवर्क एरर: इंटरनेट देखें, और ऐप को Claude के अंदर नहीं, अपनी होस्टिंग (https) से खोलें','Network error: check internet, and open the app from your own https hosting, not inside Claude');
- return tt('एरर: ','Error: ')+m.slice(0,100)}
-function aTok(){if(!AU)return Promise.resolve('');if(AU.exp-Date.now()>60000)return Promise.resolve(AU.tok);
- return fetch('https://securetoken.googleapis.com/v1/token?key='+FIREBASE_API_KEY,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(AU.ref)}).then(function(r){return r.json()}).then(function(j){if(!j.id_token)throw 0;AU.tok=j.id_token;AU.ref=j.refresh_token||AU.ref;AU.exp=Date.now()+(+j.expires_in||3600)*1000;aSave();return AU.tok}).catch(function(){AU=null;aSave();return ''})}
+var SND=true,AC=null;
 function ac(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}return AC}
 function tone(t0,f,d,v){var a=ac();if(!a)return;var o=a.createOscillator(),g=a.createGain(),t=a.currentTime+t0;o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+.02)}
 function rattle(){if(!SND)return;var a=ac();if(!a)return;var t0=a.currentTime;for(var i=0;i<8;i++){(function(i){var t=t0+i*.1+Math.random()*.03,n=a.sampleRate*.05|0,b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(var k=0;k<n;k++)d[k]=(Math.random()*2-1)*(1-k/n);var s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();s.buffer=b;f.type='bandpass';f.frequency.value=600+Math.random()*400;f.Q.value=1;g.gain.value=.2*(1-i*.09);s.connect(f);f.connect(g);g.connect(a.destination);s.start(t)})(i)}tone(.88,170,.16,.12)}
@@ -993,7 +975,7 @@ function pips(n){var m={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2
 function say(n){try{var q=window.speechSynthesis;if(!q)return;q.cancel();var u=new SpeechSynthesisUtterance(lang==='h'?WH[n]:WE[n]);u.lang=lang==='h'?'hi-IN':'en-IN';u.rate=.8;u.pitch=1;u.volume=.9;q.speak(u)}catch(e){}}
 function sfx(n){if(!SND)return;rattle();setTimeout(function(){say(n)},1000)}
 function ping(){if(SND){tone(0,740,.18,.08);tone(.16,988,.22,.08)}}
-function authUI(){var up=AM==='up';return '<div class=\"lbar\"><button class=\"btn'+(up?' ghost':'')+'\" style=\"margin:0\" onclick=\"LudoGame.am(\'in\')\">'+tt('लॉगिन','Login')+'</button><button class=\"btn'+(up?'':' ghost')+'\" style=\"margin:0\" onclick=\"LudoGame.am(\'up\')\">'+tt('साइन-अप','Sign up')+'</button></div>'+(up?'<input id=\"ldnm\" maxlength=\"14\" placeholder=\"'+tt('अपना नाम','Your name')+'\">':'')+'<input id=\"ldem\" type=\"email\" placeholder=\"Email\" autocomplete=\"email\"><input id=\"ldpw\" type=\"password\" placeholder=\"'+tt('पासवर्ड (कम से कम 6 अक्षर)','Password (min 6 characters)')+'\" autocomplete=\"'+(up?'new-password':'current-password')+'\">'+btn(up?tt('खाता बनाएँ','Create account'):tt('लॉगिन करें','Log in'),'LudoGame.auth()')}
+function authUI(){return ''}
 
 function $(i){return document.getElementById(i)}
 function tt(h,e){return lang==='h'?h:e}
@@ -1018,11 +1000,7 @@ function css(){return '#ld .red{background:#e74c3c}#ld .green{background:#2ecc71
 '#ld .lbar{display:flex;justify-content:space-between;align-items:center;gap:8px}#ld input{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);margin:6px 0;font-size:1rem;background:var(--card);color:var(--ink)}'+
 '#ld .msgs{height:130px;overflow-y:auto;font-size:.85rem;padding:5px;border:1px solid var(--line);border-radius:8px;margin:6px 0}#ld .chatrow{display:flex;gap:6px}#ld .chatrow input{margin:0}'}
 function btn(l,oc,g){return '<button class="btn'+(g?' ghost':'')+'" onclick="'+oc+'">'+l+'</button>'}
-function menuUI(){if(!$('ld')){window.jackMenu&&window.jackMenu();return}var on=!!FIREBASE_DB_URL,au=on&&!!FIREBASE_API_KEY,o;
- if(!on)o='<p class=\"muted\">'+tt('ऑनलाइन के लिए कोड में Firebase URL डालना ज़रूरी है।','Set a Firebase URL in the code to enable online play.')+'</p>';
- else if(au&&!AU)o='<p class=\"muted\">'+tt('ऑनलाइन खेलने के लिए लॉगिन करें।','Log in to play online.')+'</p>'+authUI();
- else o=(AU?'<div class=\"lbar\"><span>👤 <b>'+esc(AU.name)+'</b></span><button class=\"lang\" onclick=\"LudoGame.logout()\">'+tt('लॉग आउट','Log out')+'</button></div>':'<input id=\"ldn\" placeholder=\"'+tt('अपना नाम','Your name')+'\" value=\"'+esc(pname)+'\">')+btn(tt('नया रूम बनाएँ','Create room'),'LudoGame.create()')+'<input id=\"ldc\" placeholder=\"'+tt('रूम कोड','Room code')+'\">'+btn(tt('रूम में जुड़ें','Join room'),'LudoGame.join()',1);
- $('ld').innerHTML='<div class=\"card\"><h3>📱 '+tt('ऑफलाइन (एक फ़ोन पर)','Offline (one phone)')+'</h3>'+btn(tt('2 खिलाड़ी','2 players'),'LudoGame.start(2)')+btn(tt('4 खिलाड़ी','4 players'),'LudoGame.start(4)')+'</div><div class=\"card\"><h3>🌐 '+tt('ऑनलाइन दोस्तों के साथ','Online with friends')+'</h3>'+o+'</div>'}
+function menuUI(){if(!$('ld')){window.jackMenu&&window.jackMenu();return}var o='<input id=\"ldn\" maxlength=\"14\" placeholder=\"'+tt('अपना नाम','Your name')+'\" value=\"'+esc(pname)+'\">'+btn(tt('नया रूम बनाएँ','Create room'),'LudoGame.create()')+'<input id=\"ldc\" maxlength=\"8\" placeholder=\"'+tt('रूम कोड','Room code')+'\">'+btn(tt('रूम में जुड़ें','Join room'),'LudoGame.join()',1);$('ld').innerHTML='<div class=\"card\"><h3>📱 '+tt('ऑफलाइन (एक फ़ोन पर)','Offline (one phone)')+'</h3>'+btn(tt('2 खिलाड़ी','2 players'),'LudoGame.start(2)')+btn(tt('4 खिलाड़ी','4 players'),'LudoGame.start(4)')+'</div><div class=\"card\"><h3>🌐 '+tt('ऑनलाइन दोस्तों के साथ','Online with friends')+'</h3>'+o+'</div>'}
 function build(){var b='';for(var r=0;r<15;r++)for(var c=0;c<15;c++){
  if((r<6&&c<6)||(r<6&&c>8)||(r>8&&c<6)||(r>8&&c>8)||(r>=6&&r<=8&&c>=6&&c<=8)){
   var bc=(r===0&&c===0)?'red':(r===0&&c===9)?'green':(r===9&&c===9)?'yellow':(r===9&&c===0)?'blue':'';
@@ -1068,21 +1046,17 @@ function vLoop(){if(!VC.on||!G)return;vf('GET','').then(function(d){d=d||{};var 
 function vStop(){clearInterval(VC.iv);Object.keys(VC.pc).forEach(drop);if(VC.st)VC.st.getTracks().forEach(function(t){t.stop()});VC.st=null;if(VC.on&&G&&me)vf('DELETE','/p/'+me).catch(function(){});VC.on=0;VC.mute=0;vui()}
 var L=window.LudoGame={ctx:function(g,m){G=g;me=m},vstop:function(){vStop()},
  start:function(n){G=fresh(n===2?['red','yellow']:COL.slice(),'offline');gameUI()},
- create:function(){pname=AU?AU.name:($('ldn').value||'Player');var code=Math.random().toString(36).slice(2,6).toUpperCase();G=fresh(['red'],'online');G.code=code;G.names.red=pname;me='red';save();gameUI();startPoll()},
- join:function(){pname=AU?AU.name:($('ldn').value||'Player');var code=($('ldc').value||'').trim().toUpperCase();if(!code)return;G={code:code};fb('GET').then(function(o){if(!o){note(tt('रूम नहीं मिला','Room not found'));G=null;return}
+ create:function(){pname=(($('ldn')||{}).value||'Player').trim().slice(0,14)||'Player';var code=Math.random().toString(36).slice(2,6).toUpperCase();G=fresh(['red'],'online');G.code=code;G.names.red=pname;me='red';save();gameUI();startPoll()},
+ join:function(){pname=(($('ldn')||{}).value||'Player').trim().slice(0,14)||'Player';var code=($('ldc').value||'').trim().toUpperCase();if(!code)return;G={code:code};fb('GET').then(function(o){if(!o){note(tt('रूम नहीं मिला','Room not found'));G=null;return}
   var g=fresh(['red'],'online');g.code=code;G=g;apply(o);var free=COL.filter(function(c){return G.pl.indexOf(c)<0})[0];if(!free){note(tt('रूम भरा है','Room is full'));G=null;return}
   G.pl.push(free);G.names[free]=pname;me=free;save();gameUI();startPoll()}).catch(function(){G=null;note(tt('नेटवर्क एरर','Network error'))})},
  exit:function(){vStop();clearInterval(poll);G=null;ludoAfter()},
  voice:function(){if(!G||G.mode!=='online')return;if(VC.on){vStop();return}if(!navigator.mediaDevices||!window.RTCPeerConnection){note(tt('इस ब्राउज़र में वॉइस नहीं चलेगा','Voice is not supported in this browser'));return}navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}).then(function(st){VC.st=st;VC.on=1;VC.mute=0;vf('PUT','/p/'+me,1).catch(function(){});vLoop();VC.iv=setInterval(vLoop,1500);vui()}).catch(function(){note(tt('माइक की अनुमति दें (ऐप https पर खुला होना चाहिए)','Allow the microphone (app must be opened over https)'))})},
  mute:function(){if(!VC.on||!VC.st)return;VC.mute=!VC.mute;VC.st.getAudioTracks().forEach(function(t){t.enabled=!VC.mute});vui()},
  snd:function(){SND=!SND;if(SND)ac();gameUI()},
- am:function(m){AM=m;menuUI()},
- logout:function(){AU=null;pname='Player';aSave();menuUI()},
- auth:function(){var e=($('ldem').value||'').trim(),p=$('ldpw').value||'',up=AM==='up',n=up?($('ldnm').value||'').trim().slice(0,14):'';
-  if(!e||!p){note(tt('ईमेल और पासवर्ड भरें','Enter email and password'));return}
-  if(up&&!n){note(tt('अपना नाम लिखें','Enter your name'));return}
-  var K='?key='+FIREBASE_API_KEY;
-  aPost(IDT+(up?'signUp':'signInWithPassword')+K,{email:e,password:p,returnSecureToken:true}).then(function(j){if(up)aPost(IDT+'update'+K,{idToken:j.idToken,displayName:n}).catch(function(){});aSet(j,n);menuUI()}).catch(function(x){note(aErr(x))})},
+ am:function(){menuUI()},
+ logout:function(){pname='Player';menuUI()},
+ auth:function(){menuUI()},
  share:function(){var t=tt('Ludo खेलो! रूम कोड: ','Play Ludo! Room code: ')+G.code;if(navigator.share)navigator.share({text:t}).catch(function(){});else if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){note(tt('कोड कॉपी हो गया','Code copied'))}).catch(function(){note(t)});else note(t)},
  roll:function(){if(!G||G.rolled||G.win||!mine()||RL)return;RL=1;rattle();var e=$('ldd'),iv=setInterval(function(){if(e)e.innerHTML=pips(1+Math.floor(Math.random()*6))},110);setTimeout(function(){clearInterval(iv);RL=0;L.roll2()},950)},
  roll2:function(){if(!G||G.rolled||G.win||!mine())return;G.d=1+Math.floor(Math.random()*6);G.rolled=true;if(SND)say(G.d);var c=cur(),l=movList(c);save();draw();
@@ -1096,7 +1070,7 @@ var L=window.LudoGame={ctx:function(g,m){G=g;me=m},vstop:function(){vStop()},
   var extra=G.d===6||cap||ns===56;G.rolled=false;if(!extra)G.turn=(G.turn+1)%G.pl.length;save();draw()},
  chat:function(){var v=$('ldi').value.trim();if(!v||!G)return;var er=check(v);if(er){note(er);return}G.chat.push({n:G.names[me]||'Me',m:v.slice(0,200)});G.chat=G.chat.slice(-30);$('ldi').value='';save();draw()}
 };
-window.GYX={aTok:aTok,au:function(){return AU},db:FIREBASE_DB_URL,needAuth:!!FIREBASE_API_KEY,tt:tt,esc:esc,authUI:authUI,tone:tone,snd:function(){return SND}};
+window.GYX={aTok:function(){return Promise.resolve('')},au:function(){return null},db:FIREBASE_DB_URL,needAuth:false,tt:tt,esc:esc,authUI:function(){return ''},tone:tone,snd:function(){return SND}};
 var GOPEN=0;
 window.ludoOpen=function(v){try{history.pushState({},'')}catch(e){}GOPEN=v;window.scrollTo(0,0);render()};
 window.ludoIsOpen=function(){return GOPEN};
@@ -1171,16 +1145,12 @@ function draw(){var b=$('jkb');if(!b||!G)return;V=G.mode==='online'?me:'red';var
  b.innerHTML=s;var mm=$('jkm');if(mm){mm.innerHTML=G.chat.map(function(m){return '<div><b>'+esc(m.n)+':</b> '+esc(m.m)+'</div>'}).join('');mm.scrollTop=9e9}
  if(my&&stuck()&&!sk){sk=1;setTimeout(function(){sk=0;if(G&&mine()&&stuck()){var hh=G.hand[cur()];hh.shift();hh.push(dr());G.last=nm(cur())+': '+tt('पास','pass');nxt();sel=pick=null;save();draw()}},1600)}}
 function gameUI(){var on=G.mode==='online';$('jk').innerHTML='<div class="jb"><button class="btn ghost" onclick="Jack.exit()">'+tt('बाहर','Exit')+'</button><b>'+(on?tt('रूम','Room')+': '+G.code:tt('ऑफलाइन','Offline'))+'</b>'+(on?'<button class="btn" onclick="Jack.share()">📲</button>':'<span></span>')+'</div><div id="jkb"></div>'+(on?'<div class="card"><div class="jb"><button class="btn" id="ldv" onclick="LudoGame.voice()">🎤 '+tt('वॉइस चैट','Voice chat')+'</button><button class="lang" id="ldmu" style="display:none" onclick="LudoGame.mute()">🎙️</button></div><div class="muted" id="ldvs"></div><div class="jm" id="jkm"></div><div class="jr"><input id="jki" maxlength="200" placeholder="'+tt('संदेश लिखें','Type a message')+'"><button class="btn" style="width:auto;margin:0" onclick="Jack.chat()">➤</button></div></div>':'');draw()}
-function menu(){var el=$('jk');if(!el)return;var au=X.au(),need=X.needAuth&&!au,o;
- if(!X.db)o='<p class="muted">'+tt('ऑनलाइन के लिए कोड में Firebase URL डालना ज़रूरी है।','Set a Firebase URL in the code to enable online play.')+'</p>';
- else if(need)o='<p class="muted">'+tt('ऑनलाइन खेलने के लिए लॉगिन करें।','Log in to play online.')+'</p>'+X.authUI();
- else o=(au?'<div class="jb"><span>👤 <b>'+esc(au.name)+'</b></span><button class="lang" onclick="LudoGame.logout()">'+tt('लॉग आउट','Log out')+'</button></div>':'<input id="jkn" placeholder="'+tt('अपना नाम','Your name')+'" value="'+esc(pn)+'">')+'<button class="btn" onclick="Jack.create(2)">'+tt('रूम बनाएँ: 2 खिलाड़ी','Create room: 2 players')+'</button><button class="btn" onclick="Jack.create(4)">'+tt('रूम बनाएँ: 4 खिलाड़ी (2 टीम)','Create room: 4 players (2 teams)')+'</button><input id="jkc" placeholder="'+tt('रूम कोड','Room code')+'"><button class="btn ghost" onclick="Jack.join()">'+tt('रूम में जुड़ें','Join room')+'</button>';
- el.innerHTML='<div class="card"><h3>📱 '+tt('ऑफलाइन (एक फ़ोन पर)','Offline (one phone)')+'</h3><button class="btn" onclick="Jack.start(2)">'+tt('2 खिलाड़ी','2 players')+'</button><button class="btn" onclick="Jack.start(4)">'+tt('4 खिलाड़ी (2 टीम)','4 players (2 teams)')+'</button></div><div class="card"><h3>🌐 '+tt('ऑनलाइन दोस्तों के साथ','Online with friends')+'</h3>'+o+'</div><div class="card muted"><b>'+tt('नियम','Rules')+'</b><ul><li>'+tt('हर खिलाड़ी की 4 गोटी और हाथ में 4 पत्ते। A या K से गोटी बाहर निकलती है।','Each player has 4 marbles and 4 cards. A or K takes a marble out.')+'</li><li>'+tt('अपनी चारों गोटी घुमाकर रंगीन होम-लेन में पहुँचाएँ। दूसरे की गोटी पर पहुँचे तो वह बेस में लौटती है।','Take all 4 marbles around into your coloured home lane. Landing on an opponent sends it back to base.')+'</li><li>'+tt('J = अदला-बदली, 4 = पीछे, 5 = किसी की भी गोटी आगे। अपनी स्टार्ट पर खड़ी गोटी सुरक्षित है।','J = swap, 4 = back, 5 = move anyone\'s marble. A marble on its start cell is safe.')+'</li><li>'+tt('4 खिलाड़ी में आमने-सामने वाले साथी हैं। अपनी गोटियाँ पूरी होने पर साथी की गोटियाँ चलाएँ।','In 4 players, opposite seats are partners. When yours are done, move your partner\'s.')+'</li></ul></div>'}
+function menu(){var el=$('jk');if(!el)return;var o='<input id=\"jkn\" maxlength=\"14\" placeholder=\"'+tt('अपना नाम','Your name')+'\" value=\"'+esc(pn)+'\"><button class=\"btn\" onclick=\"Jack.create(2)\">'+tt('रूम बनाएँ: 2 खिलाड़ी','Create room: 2 players')+'</button><button class=\"btn\" onclick=\"Jack.create(4)\">'+tt('रूम बनाएँ: 4 खिलाड़ी (2 टीम)','Create room: 4 players (2 teams)')+'</button><input id=\"jkc\" maxlength=\"9\" placeholder=\"'+tt('रूम कोड','Room code')+'\"><button class=\"btn ghost\" onclick=\"Jack.join()\">'+tt('रूम में जुड़ें','Join room')+'</button>';el.innerHTML='<div class=\"card\"><h3>📱 '+tt('ऑफलाइन (एक फ़ोन पर)','Offline (one phone)')+'</h3><button class=\"btn\" onclick=\"Jack.start(2)\">'+tt('2 खिलाड़ी','2 players')+'</button><button class=\"btn\" onclick=\"Jack.start(4)\">'+tt('4 खिलाड़ी (2 टीम)','4 players (2 teams)')+'</button></div><div class=\"card\"><h3>🌐 '+tt('ऑनलाइन दोस्तों के साथ','Online with friends')+'</h3>'+o+'</div><div class=\"card muted\"><b>'+tt('नियम','Rules')+'</b><ul><li>'+tt('हर खिलाड़ी की 4 गोटी और हाथ में 4 पत्ते। A या K से गोटी बाहर निकलती है।','Each player has 4 marbles and 4 cards. A or K takes a marble out.')+'</li><li>'+tt('अपनी चारों गोटी घुमाकर रंगीन होम-लेन में पहुँचाएँ। दूसरे की गोटी पर पहुँचे तो वह बेस में लौटती है।','Take all 4 marbles around into your coloured home lane. Landing on an opponent sends it back to base.')+'</li><li>'+tt('J = अदला-बदली, 4 = पीछे, 5 = किसी भी गोटी को 5 कदम आगे। अपनी स्टार्ट पर खड़ी गोटी सुरक्षित है।','J = swap, 4 = back, 5 = move any marble 5 forward. A marble on its start cell is safe.')+'</li><li>'+tt('4 खिलाड़ी में आमने-सामने वाले साथी हैं। अपनी गोटियाँ पूरी होने पर साथी की गोटियाँ चलाएँ।','In 4 players, opposite seats are partners. When yours are done, move your partner’s.')+'</li></ul></div>'}
 window.jackMenu=menu;
 window.jackView=function(){return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><button onclick="ludoBack()" aria-label="Back" style="border:1px solid var(--line);background:var(--card);border-radius:12px;padding:6px 16px;font-size:22px;font-weight:800;line-height:1">&larr;</button><b>🃏 Jackaroo</b></div><style>'+css()+'</style><div id="jk"></div>'};
 window.jackAfter=function(){if(G)gameUI();else menu()};
 window.jackExit=function(){clearInterval(poll);LudoGame.vstop();LudoGame.ctx(null,null);G=null;sel=pick=null};
-function nameIn(){var a=X.au();pn=a?a.name:(($('jkn')||{}).value||'Player')}
+function nameIn(){pn=(( $('jkn')||{}).value||'Player').trim().slice(0,14)||'Player'}
 window.Jack={
  start:function(n){fresh(n,'offline');sel=pick=null;gameUI()},
  create:function(n){nameIn();fresh(n,'online');G.code='J'+Math.random().toString(36).slice(2,6).toUpperCase();me='red';G.names.red=pn;LudoGame.ctx({mode:'online',code:G.code},me);save();gameUI();startPoll()},
