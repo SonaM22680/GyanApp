@@ -1154,7 +1154,7 @@ window.ludoBack=function(){window.jackExit&&window.jackExit();window.sitaraExit&
 window.ludoView=function(){
  if(GOPEN===2)return window.jackView();
  if(GOPEN===3)return window.sitaraView();
- if(!GOPEN)return '<div class="card"><h2>'+tt('गेम्स','Games')+'</h2><p class="muted">'+tt('एक चुनें, गेम अगले पेज पर खुलेगा।','Pick one. The game opens on the next page.')+'</p></div>'+navRow('🎲','Ludo',tt('ऑफलाइन · ऑनलाइन','Offline · Online'),'ludoOpen(1)')+navRow('🃏','Jackaroo',tt('2 या 4 खिलाड़ी · ऑनलाइन में चैट और वॉइस','2 or 4 players · chat & voice online'),'ludoOpen(2)')+navRow('⭐','Sitara Rush',tt('सितारे पकड़ो, काँटों से बचो · 500 लेवल','Catch stars, dodge spikes · 500 levels'),'ludoOpen(3)');
+ if(!GOPEN)return '<div class="card"><h2>'+tt('गेम्स','Games')+'</h2><p class="muted">'+tt('एक चुनें, गेम अगले पेज पर खुलेगा।','Pick one. The game opens on the next page.')+'</p></div>'+navRow('🎲','Ludo',tt('ऑफलाइन · ऑनलाइन','Offline · Online'),'ludoOpen(1)')+navRow('🃏','Jackaroo',tt('2 या 4 खिलाड़ी · ऑनलाइन में चैट और वॉइस','2 or 4 players · chat & voice online'),'ludoOpen(2)')+navRow('⭐','Sitara Rush',tt('अपनों को बचाओ, लाल सितारों से बचो · 30 लेवल','Save your loved one, dodge red stars · 30 levels'),'ludoOpen(3)');
   return '<style>'+css()+'</style><div id="ld"></div>'};
 window.ludoAfter=function(){if(!GOPEN)return;if(GOPEN===2){window.jackAfter();return}if(GOPEN===3){window.sitaraAfter();return}if(G&&G.pl)gameUI();else menuUI()};
 })();
@@ -1511,20 +1511,81 @@ function labView(){
 (function(){
 var cv,g,W,H,S,dpr=Math.min(devicePixelRatio||1,2),raf=0,last=0;
 var best=0;try{best=+localStorage.getItem('sitararush-best')||0}catch(e){}
-var run=false,over=0,score=0,lives=2,lv=1,banner=0,items=[],fx=[],ft=[],spawn=0,exT=0,t=0,shake=0,msg=null,won=false;
-var P={x:0,y:0,r:16,tx:0,ty:0},keys={},FN='system-ui,"Noto Sans Devanagari",sans-serif';
+var MAXL=30,PL=60,ADS=[10,15];
+var REL={
+ wife:{e:'👰',h:'पत्नी',en:'wife',a:'अपनी',v:'f',pt:1.6,
+  p:function(n,m){return['पति देव जी, मुझे बचा लो ना!',n+' जी, सुनिए ना, मुझे बचा लो!','मेरे पति देव, आप ही मेरे हीरो हो, जल्दी आओ!']},
+  w:function(n,m){return'थैंक यू पति देव जी! आप ही मेरे असली हीरो हो!'}},
+ gf:{e:'👩',h:'प्रेमिका',en:'girlfriend',a:'अपनी',v:'f',pt:1.6,
+  p:function(n,m){return['माय लव, मेरी जान, मुझे बचा लो!',n+', मेरी जान, जल्दी आओ, मुझे बचा लो!','बेबी प्लीज़, मुझे बचा लो!']},
+  w:function(n,m){return'आई लव यू मेरी जान! तुमने मुझे बचा लिया!'}},
+ bf:{e:'👨',h:'प्रेमी',en:'boyfriend',a:'अपने',v:'m',pt:.9,
+  p:function(n,m){return['माय लव, मेरी जान, मुझे बचा लो!',n+', मेरे हीरो, जल्दी आओ, मुझे बचा लो!','जान, प्लीज़ मुझे बचा लो!']},
+  w:function(n,m){return'आई लव यू मेरी जान! तुमने मुझे बचा लिया!'}},
+ husband:{e:'🤵',h:'पति',en:'husband',a:'अपने',v:'m',pt:.8,
+  p:function(n,m){return['सुनो जी, '+n+', मुझे बचा लो!','मेरी जान, जल्दी आओ, मुझे बचा लो!','मेरी रानी, तुम ही मेरी उम्मीद हो, बचा लो!']},
+  w:function(n,m){return'थैंक यू मेरी जान! तुमने मेरी जान बचा ली!'}},
+ brother:{e:'👦',h:'भाई',en:'brother',a:'अपने',v:'m',pt:.95,
+  p:function(n,m){return m?['भाई '+n+', मुझे बचा ले!','भाई, तू ही मेरा हीरो है, जल्दी आ!','भाई प्लीज़, मुझे बचा ले यार!']:['दीदी, मुझे बचा लो ना!','प्यारी दीदी, जल्दी आओ, मुझे बचा लो!','दीदी, आप ही मेरी हीरो हो!']},
+  w:function(n,m){return m?'थैंक यू भाई! तू मेरा असली हीरो है!':'थैंक यू दीदी! आप मेरी असली हीरो हो!'}},
+ sister:{e:'👧',h:'बहन',en:'sister',a:'अपनी',v:'f',pt:1.7,
+  p:function(n,m){return m?['भैया, मुझे बचा लो ना!','प्यारे भैया, जल्दी आओ!','भैया, आप ही मेरे हीरो हो!']:['दीदी, मुझे बचा लो ना!','प्यारी दीदी, जल्दी आओ!',n+' दीदी, मुझे बचा लो!']},
+  w:function(n,m){return m?'थैंक यू भैया! आप मेरे असली हीरो हो!':'थैंक यू दीदी! आप सबसे अच्छी हो!'}},
+ mother:{e:'👩‍🦳',h:'माता',en:'mother',a:'अपनी',v:'f',pt:1.2,
+  p:function(n,m){var b=m?'बेटा':'बेटी';return[b+' '+n+', मुझे बचा ले!',m?'मेरे लाल, जल्दी आ, मुझे बचा ले!':'मेरी लाडो, जल्दी आ, मुझे बचा ले!',b+', तू ही मेरा सहारा है, बचा ले!']},
+  w:function(n,m){return'जीते रहो '+(m?'बेटा':'बेटी')+'! तुमने अपनी माँ को बचा लिया!'}},
+ father:{e:'👨‍🦳',h:'पिता',en:'father',a:'अपने',v:'m',pt:.65,
+  p:function(n,m){var b=m?'बेटा':'बेटी';return[b+' '+n+', मुझे बचा लो!','शाबाश '+b+', जल्दी आओ, मुझे बचा लो!',b+', तुम ही मेरी ताक़त हो, बचा लो!']},
+  w:function(n,m){return'शाबाश '+(m?'बेटा':'बेटी')+'! मुझे तुम पर गर्व है!'}}
+};
+var RK=['wife','gf','bf','husband','brother','sister','mother','father'];
+var cfg={name:'रोहित',male:true,rel:'wife',voice:true};
+try{var c0=JSON.parse(localStorage.getItem('sitararush-cfg')||'null');if(c0){cfg.name=String(c0.name==null?'रोहित':c0.name).slice(0,14);cfg.male=c0.male!==false;cfg.voice=c0.voice!==false;if(REL[c0.rel])cfg.rel=c0.rel}}catch(e){}
+var combo=0,comboT=0,flash=0,danger=0,phase='idle',run=false,over=0,score=0,lives=2,lv=1,banner=0,items=[],fx=[],ft=[],spawn=0,exT=0,t=0,shake=0,msg=null,won=false,inv=0,revN=0,adT=0,adLen=10,bub='',bubT=0,pi=0,winLine='',btns=[];
+var P={x:0,y:0,r:18,tx:0,ty:0},keys={},FN='system-ui,"Noto Sans Devanagari",sans-serif';
 var PTS={s:10,c:20,g:30,b:50},COL={s:'#ffd166',c:'#3ddc84',g:'#4cc9f0',b:'#c9b6ff'};
 var LR={s:24,c:22,g:20,b:20,h:20,k:20,x:22};
 function alive(){return cv&&document.body.contains(cv)}
-function sg(a){var l=Math.max(1,Math.min(500,lv));if(l<=a[0][0])return a[0][1];for(var i=1;i<a.length;i++)if(l<=a[i][0])return a[i-1][1]+(a[i][1]-a[i-1][1])*(l-a[i-1][0])/(a[i][0]-a[i-1][0]);return a[a.length-1][1]}
-var CV={iv:[[1,.85],[10,.78],[30,.68],[50,.58],[80,.48],[100,.44]],sp:[[1,130],[10,160],[30,200],[50,250],[80,320],[100,355]],wx:[[1,5],[10,6],[30,8],[50,11],[80,15],[100,17]],wk:[[3,3],[50,5],[100,7]],en:[[1,0],[14,0],[15,.3],[30,.7],[50,1],[80,1.6],[100,1.8]],dr:[[1,0],[14,0],[30,60],[50,110],[80,170],[100,200]]};
+function nm(){return(cfg.name||'').trim()||'खिलाड़ी'}
+function esc2(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+function sg(a){var l=Math.max(1,Math.min(MAXL,lv));if(l<=a[0][0])return a[0][1];for(var i=1;i<a.length;i++)if(l<=a[i][0])return a[i-1][1]+(a[i][1]-a[i-1][1])*(l-a[i-1][0])/(a[i][0]-a[i-1][0]);return a[a.length-1][1]}
+/* लेवल 1-10 आसान, 11-20 मध्यम, 21-30 थोड़ा कठिन */
+var CV={iv:[[1,.85],[10,.72],[20,.58],[30,.42]],sp:[[1,125],[10,165],[20,225],[30,320]],wx:[[1,4],[10,5],[20,8],[30,11]],wk:[[3,3],[30,5]],en:[[1,0],[9,0],[10,.2],[20,.7],[30,1.2]],dr:[[1,0],[10,0],[20,50],[30,100]]};
+function tag(){return lv<=10?T('आसान','Easy'):lv<=20?T('मध्यम','Medium'):T('थोड़ा कठिन','Hard')}
+function rom(s){
+ var C={'क':'k','ख':'kh','ग':'g','घ':'gh','च':'ch','छ':'chh','ज':'j','झ':'jh','ट':'t','ठ':'th','ड':'d','ढ':'dh','त':'t','थ':'th','द':'d','ध':'dh','न':'n','प':'p','फ':'f','ब':'b','भ':'bh','म':'m','य':'y','र':'r','ल':'l','व':'v','श':'sh','ष':'sh','स':'s','ह':'h'},
+ V={'अ':'a','आ':'aa','इ':'i','ई':'ee','उ':'u','ऊ':'oo','ए':'e','ऐ':'ai','ओ':'o','औ':'au'},
+ M={'ा':'aa','ि':'i','ी':'ee','ु':'u','ू':'oo','े':'e','ै':'ai','ो':'o','ौ':'au','ं':'n','ँ':'n'},o='',i,c,d;
+ for(i=0;i<s.length;i++){c=s[i];d=s[i+1];
+  if(C[c]){o+=C[c];if(d==='़'){i++;d=s[i+1]}if(d==='्'){i++}else if(M[d]){}else if(d&&C[d])o+='a';else if(d&&V[d])o+='a'}
+  else if(V[c])o+=V[c];else if(M[c])o+=M[c];else if(c!=='़'&&c!=='्')o+=c}
+ return o.replace(/maay lav/g,'my love').replace(/pleej/g,'please').replace(/thaink yoo/g,'thank you').replace(/aaee lav yoo/g,'I love you').replace(/bebee/g,'baby')}
+function speak(s,R){
+ if(!cfg.voice)return;var ss=window.speechSynthesis;if(!ss||typeof SpeechSynthesisUtterance==='undefined')return;
+ var go=function(){try{var vs=ss.getVoices(),hi=vs.filter(function(x){return /^hi/i.test(x.lang)}),useHi=hi.length>0||vs.length===0,u=new SpeechSynthesisUtterance(useHi?s:rom(s)),
+  pool=useHi?hi:vs.filter(function(x){return /^en[-_]IN/i.test(x.lang)||/^en/i.test(x.lang)}),fem=function(x){return /female|swara|kalpana|heera|lekha|google|zira|samantha|veena/i.test(x.name)},pk=null,i;
+  for(i=0;i<pool.length;i++){if(R.v==='f'?fem(pool[i]):!fem(pool[i])){pk=pool[i];break}}
+  if(!pk&&pool.length)pk=pool[0];if(pk)u.voice=pk;u.lang=pk?pk.lang:(useHi?'hi-IN':'en-IN');
+  u.pitch=Math.min(2,R.pt);u.rate=.88;u.volume=1;ss.resume();ss.speak(u)}catch(e){}};
+ if(ss.speaking||ss.pending){ss.cancel();setTimeout(go,120)}else go()}
+function say(s){bub=s;bubT=4.5;speak(s,REL[cfg.rel])}
+function plea(){var L=REL[cfg.rel].p(nm(),cfg.male);say(L[pi++%L.length])}
 function rs(){var b=cv.getBoundingClientRect();if(!b.width)return;W=b.width;H=b.height;cv.width=W*dpr;cv.height=H*dpr;g.setTransform(dpr,0,0,dpr,0,0);S=Math.min(W,H*.6)/400}
-function reset(){score=0;lives=2;lv=1;banner=0;items=[];fx=[];ft=[];spawn=0;exT=0;t=0;won=false;msg=null;P.x=P.tx=W/2;P.y=P.ty=H*.75;run=true}
-function end(m,w){run=false;over=performance.now();msg=m;won=!!w;if(score>best){best=score;try{localStorage.setItem('sitararush-best',best)}catch(e){}}}
+function reset(){score=0;lives=2;lv=1;banner=1.2;items=[];fx=[];ft=[];spawn=0;exT=0;t=0;won=false;msg=null;inv=0;revN=0;pi=0;combo=0;comboT=0;flash=0;danger=0;P.x=P.tx=W/2;P.y=P.ty=H*.75;phase='play';run=true;plea()}
+function end(m,w){run=false;over=performance.now();msg=m;won=!!w;phase=w?'win':'over';if(score>best){best=score;try{localStorage.setItem('sitararush-best',best)}catch(e){}}}
+function die(m){run=false;msg=m;if(revN>=2){end(m);return}phase='revive';adLen=ADS[Math.min(revN,ADS.length-1)];try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}}
+function startAd(){
+ if(typeof window.SITARA_SHOW_AD==='function'){phase='adwait';try{window.SITARA_SHOW_AD(adLen,function(ok){if(phase!=='adwait')return;phase=ok===false?'revive':'adok'})}catch(e){phase='ad';adT=adLen}}
+ else{phase='ad';adT=adLen}}
+function revive(){revN++;lives=Math.max(lives,1);items=[];fx=[];inv=2.5;P.tx=P.x;P.ty=P.y;phase='play';run=true;plea()}
+function act(id){if(id==='ad')startAd();else if(id==='quit')end(msg);else if(id==='back')revive()}
 function pos(e){var b=cv.getBoundingClientRect();P.tx=e.clientX-b.left;P.ty=Math.min(e.clientY-b.top-40,H-30)}
 function burst(x,y,c,n){for(var i=0;i<n;i++){var a=Math.random()*6.28,v=60+Math.random()*160;fx.push({x:x,y:y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:.6,c:c})}}
 function starPath(r,rot){g.beginPath();for(var i=0;i<10;i++){var a=rot+i*Math.PI/5-Math.PI/2,d=i%2?r*.45:r;g.lineTo(Math.cos(a)*d,Math.sin(a)*d)}g.closePath()}
-function diamond(r){g.beginPath();g.moveTo(0,-r);g.lineTo(r*.8,0);g.lineTo(0,r);g.lineTo(-r*.8,0);g.closePath()}
+function rr(x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+function fit(s,mw,px,wt){var f=px;do{g.font=wt+' '+f+'px '+FN;f--}while(g.measureText(s).width>mw&&f>9)}
+function tx(s,x,y,px,wt,col){g.fillStyle=col;fit(s,W-24,px,wt);g.fillText(s,x,y)}
+function button(id,label,cx,y,w,h,fill,col){var x=cx-w/2;rr(x,y,w,h,h/2);g.fillStyle=fill;g.fill();g.fillStyle=col||'#1a1030';fit(label,w-20,17,800);g.textAlign='center';g.textBaseline='middle';g.fillText(label,cx,y+h/2+1);btns.push({id:id,x:x,y:y,w:w,h:h})}
 function drawItem(k,x,y,r,rot,now){
  g.save();g.translate(x,y);
  if(k==='s'){
@@ -1559,26 +1620,27 @@ function pickKind(){
  for(k in w){if(r<w[k])return k;r-=w[k]}
  return 's'}
 function hit(it){var k=it.k;
- if(PTS[k]){score+=PTS[k];burst(it.x,it.y,COL[k],10+PTS[k]/5);ft.push({x:it.x,y:it.y,s:'+'+PTS[k],c:COL[k],l:.8})}
+ if(PTS[k]){var mu=1+Math.min(2,Math.floor(combo/8)),pt=PTS[k]*mu;combo++;comboT=2.5;score+=pt;burst(it.x,it.y,COL[k],10+pt/5);ft.push({x:it.x,y:it.y,s:'+'+pt,c:COL[k],l:.8})}
  else if(k==='h'){lives=Math.min(5,lives+1);burst(it.x,it.y,'#ff6b9d',12);ft.push({x:it.x,y:it.y,s:'+1 ❤',c:'#ff6b9d',l:.8})}
- else if(k==='k'){lives--;shake=.3;burst(it.x,it.y,'#ffffff',14);ft.push({x:it.x,y:it.y,s:'-1 ❤',c:'#ffffff',l:.8});if(lives<=0)end(['काले दिल ने आख़िरी जान ले ली!','Black heart took your last life!'])}
- else{shake=.3;burst(it.x,it.y,'#ff4d4d',18);end(['लाल काँटे से टकरा गए!','You hit a red spike!'])}}
+ else if(inv>0){return}
+ else if(k==='k'){lives--;shake=.3;burst(it.x,it.y,'#ffffff',14);ft.push({x:it.x,y:it.y,s:'-1 ❤',c:'#ffffff',l:.8});if(lives<=0)die(['काले दिल ने आख़िरी जान ले ली!','The black heart took your last life!'])}
+ else{shake=.3;burst(it.x,it.y,'#ff4d4d',18);die(['लाल सितारे से टकरा गए!','You hit a red star!'])}}
 function step(dt){
- t+=dt;
- var nl=1+Math.floor(score/100);
- if(nl>500){lv=500;end(['500 लेवल पूरे किए!','You beat all 500 levels!'],1);return}
- if(nl>lv){lv=nl;banner=1.5}
+ t+=dt;inv=Math.max(0,inv-dt);comboT-=dt;if(comboT<=0)combo=0;
+ var nl=1+Math.floor(score/PL);
+ if(nl>MAXL){lv=MAXL;var R=REL[cfg.rel];winLine=R.w(nm(),cfg.male);end(['',''],1);speak(winLine,R);return}
+ if(nl>lv){lv=nl;banner=1.5;flash=.5;if(lv%3===0||lv===MAXL)plea()}
  banner=Math.max(0,banner-dt);
  var sp=420*S*dt*1.6;
  if(keys.ArrowLeft||keys.a)P.tx-=sp;if(keys.ArrowRight||keys.d)P.tx+=sp;
  if(keys.ArrowUp||keys.w)P.ty-=sp;if(keys.ArrowDown||keys.s)P.ty+=sp;
- P.tx=Math.max(20,Math.min(W-20,P.tx));P.ty=Math.max(60,Math.min(H-20,P.ty));
+ P.tx=Math.max(20,Math.min(W-20,P.tx));P.ty=Math.max(95,Math.min(H-20,P.ty));
  P.x+=(P.tx-P.x)*Math.min(1,dt*14);P.y+=(P.ty-P.y)*Math.min(1,dt*14);
  spawn-=dt;
  if(spawn<=0){
-  var k=pickKind(),R={s:22*S+6,c:12*S+7,g:10*S+5,b:10*S+5,h:14*S+7,k:14*S+7,x:15*S+4};
+  var k=pickKind(),RR={s:22*S+6,c:12*S+7,g:10*S+5,b:10*S+5,h:14*S+7,k:14*S+7,x:15*S+4};
   spawn=sg(CV.iv);
-  items.push({k:k,r:R[k],x:30+Math.random()*(W-60),y:-30,v:(sg(CV.sp)+Math.random()*60)*S*(k==='b'?1.3:k==='g'?1.15:1),dx:(k==='x'||k==='k')?(Math.random()-.5)*sg(CV.dr)*S:0,rot:0});
+  items.push({k:k,r:RR[k],x:30+Math.random()*(W-60),y:-30,v:(sg(CV.sp)+Math.random()*60)*S*(k==='b'?1.3:k==='g'?1.15:1),dx:(k==='x'||k==='k')?(Math.random()-.5)*sg(CV.dr)*S:0,rot:0});
  }
  exT-=dt;
  if(exT<=0&&lv>=10){
@@ -1588,67 +1650,160 @@ function step(dt){
  for(var i=0;i<items.length;i++){var it=items[i];it.y+=it.v*dt;it.x+=it.dx*dt;it.rot+=dt*2;
   if(Math.hypot(it.x-P.x,it.y-P.y)<P.r+it.r*(it.k==='x'?.8:.9)){it.dead=1;hit(it);if(!run)break}
   else if(it.y>H+40)it.dead=1}
+ var dg=0;items.forEach(function(q){if(q.k==='x'||q.k==='k'){var d=Math.hypot(q.x-P.x,q.y-P.y);if(d<130)dg=Math.max(dg,1-d/130)}});danger=dg;
  items=items.filter(function(q){return !q.dead})}
+var SP={wife:{sk:'#f1c9a5',hr:'#1b1020',st:'long',cl:'#e0245e',bn:1},gf:{sk:'#f6d3b3',hr:'#6b3416',st:'pony',cl:'#ff7eb6'},bf:{sk:'#e8bb94',hr:'#17120f',st:'short',cl:'#2f6fdb',cap:1},husband:{sk:'#e8bb94',hr:'#17120f',st:'short',cl:'#2d3a55',tie:1,mo:1},brother:{sk:'#eec3a0',hr:'#2a1a10',st:'short',cl:'#1fa97a'},sister:{sk:'#f6d3b3',hr:'#2a1410',st:'pig',cl:'#ffb300'},mother:{sk:'#e9bb98',hr:'#4a4a52',st:'bun',cl:'#ff8a3d',bn:1},father:{sk:'#e3b48f',hr:'#c9ccd4',st:'short',cl:'#8e6bd8',mo:1,gl:1}};
+var PM={sk:'#eec3a0',hr:'#14110f',st:'short',cl:'#14b8e6',sh:1,cape:1},PF={sk:'#f6d3b3',hr:'#2a1410',st:'long',cl:'#14b8e6',sh:1,cape:1};
+function person(x,y,s,p,mood,n){
+ g.save();g.translate(x,y);g.scale(s,s);g.lineCap='round';
+ if(p.cape){var w=3*Math.sin(n/150);g.fillStyle='#e63946';g.beginPath();g.moveTo(-12,14);g.lineTo(12,14);g.lineTo(19+w,42);g.lineTo(-19-w,42);g.closePath();g.fill()}
+ g.fillStyle=p.hr;
+ if(p.st==='long'){rr(-16,-12,32,46,13);g.fill()}
+ else if(p.st==='bun'){g.beginPath();g.arc(0,-19,7,0,6.3);g.fill()}
+ else if(p.st==='pig'){g.beginPath();g.arc(-18,3,6,0,6.3);g.arc(18,3,6,0,6.3);g.fill()}
+ else if(p.st==='pony'){g.beginPath();g.ellipse(17,7,5,12,.3,0,6.3);g.fill()}
+ g.fillStyle=p.cl;rr(-12,13,24,25,8);g.fill();
+ if(p.tie){g.fillStyle='#fff';g.fillRect(-4,13,8,10);g.fillStyle='#c1121f';g.fillRect(-1.5,15,3,15)}
+ g.fillStyle=p.sk;g.beginPath();g.arc(0,0,14,0,6.3);g.fill();
+ g.fillStyle=p.hr;g.beginPath();g.arc(0,-2,14.5,3.35,6.07);g.closePath();g.fill();
+ if(p.cap){g.fillStyle='#e63946';g.beginPath();g.arc(0,-3,14.5,3.2,6.2);g.fill();g.fillRect(-2,-5,18,4)}
+ if(p.sh){g.fillStyle='#111';rr(-11,-3,10,6,2);g.fill();rr(1,-3,10,6,2);g.fill()}
+ else{var bl=Math.sin(n/600)>.96;g.fillStyle='#222';if(bl){g.fillRect(-7,0,4,1);g.fillRect(3,0,4,1)}else{g.beginPath();g.arc(-5,0,2,0,6.3);g.arc(5,0,2,0,6.3);g.fill()}
+  if(mood!=='happy'){g.strokeStyle='#222';g.lineWidth=1.3;g.beginPath();g.moveTo(-8,-6);g.lineTo(-3,-4);g.moveTo(8,-6);g.lineTo(3,-4);g.stroke()}}
+ if(p.gl){g.strokeStyle='#333';g.lineWidth=1.2;g.beginPath();g.arc(-5,0,4,0,6.3);g.moveTo(9,0);g.arc(5,0,4,0,6.3);g.stroke()}
+ if(p.mo){g.fillStyle=p.hr==='#c9ccd4'?'#888':'#222';g.fillRect(-5,5,10,2)}
+ if(p.bn){g.fillStyle='#d00';g.beginPath();g.arc(0,-8,1.6,0,6.3);g.fill()}
+ g.strokeStyle='#7a2a2a';g.fillStyle='#7a2a2a';g.lineWidth=1.5;g.beginPath();
+ if(mood==='happy'||mood==='hero'){g.arc(0,5,5,.2,2.9);g.stroke()}
+ else if(mood==='scared'){g.ellipse(0,9,3,4,0,0,6.3);g.fill()}
+ else{g.arc(0,10,4,3.4,6);g.stroke()}
+ if(mood==='worry'||mood==='scared'){g.fillStyle='#5ac8fa';g.beginPath();g.arc(15,-6+2*Math.sin(n/200),2.2,0,6.3);g.fill()}
+ g.restore()}
+function rescuer(n){
+ var R=REL[cfg.rel],p=SP[cfg.rel],cx=W/2,cy=60,mood=danger>.4?'scared':'worry',sh=danger>.4?1.5*Math.sin(n/40):0;
+ g.save();g.fillStyle='rgba(255,255,255,.15)';rr(cx-24,cy+30,48,5,3);g.fill();
+ person(cx+sh,cy,.72,p,mood,n);
+ g.strokeStyle=p.sk;g.lineWidth=3.5;g.lineCap='round';g.beginPath();g.moveTo(cx+10,cy+15);g.lineTo(cx+21,cy+3+6*Math.sin(n/120));g.stroke();
+ g.font='700 11px '+FN;g.textAlign='left';g.textBaseline='middle';g.fillStyle='#ffd1d8';g.fillText(R.h,cx+32,cy+24);g.restore()}
+function bubble(){
+ return;
+ }
+function player(n){
+ g.save();if(inv>0&&Math.floor(n/110)%2)g.globalAlpha=.4;
+ var gr=g.createRadialGradient(P.x,P.y,2,P.x,P.y,P.r+12);gr.addColorStop(0,'rgba(76,201,240,.55)');gr.addColorStop(1,'rgba(76,201,240,0)');
+ g.fillStyle=gr;g.beginPath();g.arc(P.x,P.y,P.r+12,0,6.283);g.fill();
+ person(P.x,P.y-6,.9,cfg.male?PM:PF,'hero',n);
+ g.font='700 12px '+FN;g.textAlign='center';g.textBaseline='middle';g.lineWidth=3;g.strokeStyle='rgba(0,0,0,.75)';g.strokeText(nm(),P.x,P.y+40);g.fillStyle='#fff';g.fillText(nm(),P.x,P.y+40);g.restore()}
 function draw(n,dt){
+ btns=[];
  for(var i=0;i<fx.length;i++){var f=fx[i];f.x+=f.vx*dt;f.y+=f.vy*dt;f.l-=dt}fx=fx.filter(function(f){return f.l>0});
  for(var j=0;j<ft.length;j++){ft[j].y-=40*dt;ft[j].l-=dt}ft=ft.filter(function(f){return f.l>0});
- shake=Math.max(0,shake-dt);
+ shake=Math.max(0,shake-dt);if(run)bubT=Math.max(0,bubT-dt);
  g.save();
  if(shake>0)g.translate((Math.random()-.5)*30*shake,(Math.random()-.5)*30*shake);
  var bg=g.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0b1020');bg.addColorStop(1,'#241a4d');
  g.fillStyle=bg;g.fillRect(-20,-20,W+40,H+40);
  for(var s=0;s<30;s++){g.fillStyle='rgba(255,255,255,.25)';g.fillRect((s*97)%W,((s*53+t*30*(1+s%3))%H),2,2)}
+ rescuer(n);
  items.forEach(function(it){drawItem(it.k,it.x,it.y,it.r,it.rot,n)});
  fx.forEach(function(f){g.globalAlpha=Math.max(0,f.l/.6);g.fillStyle=f.c;g.fillRect(f.x,f.y,4,4)});
  g.globalAlpha=1;
- if(run||over){
-  var gr=g.createRadialGradient(P.x-4,P.y-4,2,P.x,P.y,P.r+4);gr.addColorStop(0,'#fff');gr.addColorStop(1,'#4cc9f0');
-  g.fillStyle=gr;g.shadowColor='#4cc9f0';g.shadowBlur=22;g.beginPath();g.arc(P.x,P.y,P.r,0,6.28);g.fill();g.shadowBlur=0}
+ if(run||phase==='revive')player(n);
+ bubble();
+ if(run){if(danger>0){var vg=g.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.75);vg.addColorStop(0,'rgba(255,0,40,0)');vg.addColorStop(1,'rgba(255,0,40,'+(.5*danger)+')');g.fillStyle=vg;g.fillRect(0,0,W,H)}
+  if(lv>=10){g.strokeStyle='rgba(255,255,255,.14)';g.lineWidth=1;for(var q=0;q<10;q++){var lx=(q*79+7)%W,ly=(q*131+t*(300+lv*12))%H;g.beginPath();g.moveTo(lx,ly);g.lineTo(lx,ly+16+lv);g.stroke()}}
+  if(flash>0){g.fillStyle='rgba(255,255,255,'+flash*.6+')';g.fillRect(0,0,W,H);flash=Math.max(0,flash-dt)}
+  if(combo>=3){g.textAlign='center';g.textBaseline='middle';g.font='800 20px '+FN;g.fillStyle='#ff9f1c';g.fillText('🔥 COMBO x'+combo,W/2,Math.max(190,H*.3))}}
  g.textAlign='center';g.textBaseline='middle';g.font='700 18px '+FN;
  ft.forEach(function(f){g.globalAlpha=Math.max(0,f.l/.8);g.fillStyle=f.c;g.fillText(f.s,f.x,f.y)});
  g.globalAlpha=1;g.restore();
  g.textBaseline='top';g.textAlign='left';g.fillStyle='#f4f6ff';g.font='700 19px '+FN;
  g.fillText(T('अंक','Score')+' '+score,12,12);
- g.font='600 14px '+FN;g.fillStyle='#ffd166';g.fillText(T('लेवल','Level')+' '+lv+' / 500',12,38);
+ g.font='600 14px '+FN;g.fillStyle='#ffd166';g.fillText(T('लेवल','Level')+' '+lv+' / '+MAXL,12,38);
  g.textAlign='right';g.font='16px sans-serif';g.fillText('❤️'.repeat(Math.max(lives,0)),W-12,12);
  g.textAlign='center';g.font='13px '+FN;g.fillStyle='#b8c0ff';g.fillText(T('सर्वश्रेष्ठ','Best')+' '+best,W/2,14);
- g.fillStyle='#ffd166';g.fillRect(0,0,W*((score%100)/100),3);
- if(run&&banner>0){g.globalAlpha=Math.min(1,banner);g.fillStyle='#ffd166';g.textBaseline='middle';g.font='800 40px '+FN;g.fillText(T('लेवल','Level')+' '+lv+'!',W/2,H*.35);g.globalAlpha=1;g.textBaseline='top'}
+ g.fillStyle='#ffd166';g.fillRect(0,0,W*Math.min(1,score/(MAXL*PL)),3);
+ if(run&&banner>0){g.globalAlpha=Math.min(1,banner);g.fillStyle='#ffd166';g.textBaseline='middle';g.font='800 40px '+FN;g.fillText(T('लेवल','Level')+' '+lv+'!',W/2,H*.4);g.globalAlpha=1;g.textBaseline='top'}
  if(!run){
-  g.fillStyle='rgba(8,10,30,.8)';g.fillRect(0,0,W,H);
-  g.fillStyle='#f4f6ff';g.textAlign='center';g.textBaseline='middle';
-  g.font='800 36px '+FN;g.fillText(won?'You Win! 🏆':over?'Game Over':'SITARA RUSH',W/2,H*.26);
-  if(over){
-   g.font='600 17px '+FN;g.fillStyle='#ff9aa2';g.fillText(T(msg[0],msg[1]),W/2,H*.26+44);
-   g.fillStyle='#f4f6ff';g.font='700 19px '+FN;
-   g.fillText(T('अंक','Score')+' '+score+'  ·  '+T('लेवल','Level')+' '+lv,W/2,H*.5);
-   g.fillText(T('सर्वश्रेष्ठ','Best')+' '+best,W/2,H*.5+30);
+  var y0=Math.max(120,H*.22),cx=W/2,R=REL[cfg.rel],N=nm();
+  g.textAlign='center';g.textBaseline='middle';
+  if(phase==='ad'||phase==='adwait'||phase==='adok'){
+   var ag=g.createLinearGradient(0,0,0,H);ag.addColorStop(0,'#10223f');ag.addColorStop(1,'#3a1450');g.fillStyle=ag;g.fillRect(0,0,W,H);
+   tx('📺 '+T('विज्ञापन','Advertisement'),cx,y0-20,26,800,'#f4f6ff');
+   if(phase==='ad'){
+    tx(String(Math.ceil(adT)),cx,y0+40,60,800,'#ffd166');
+    g.fillStyle='rgba(255,255,255,.2)';rr(W*.15,y0+86,W*.7,10,5);g.fill();g.fillStyle='#ffd166';rr(W*.15,y0+86,Math.max(10,W*.7*(1-adT/adLen)),10,5);g.fill();
+    tx(T('विज्ञापन पूरा होने तक रुकिए…','Please wait for the ad to finish…'),cx,y0+120,16,600,'#b8c0ff');
+   }else if(phase==='adwait'){
+    tx(T('विज्ञापन चल रहा है…','Ad is playing…'),cx,y0+50,20,700,'#b8c0ff');
+   }else{
+    tx('✅ '+T('विज्ञापन पूरा हुआ!','Ad finished!'),cx,y0+40,24,800,'#7dffb2');
+    button('back','▶ '+T('वापस खेलो','Resume'),cx,y0+80,Math.min(W-40,260),50,'#ffd166');
+   }
+   person(cx,y0+(phase==='adok'?165:160),1,SP[cfg.rel],'scared',n);
   }else{
-   g.font='600 16px '+FN;g.fillStyle='#b8c0ff';g.fillText(T('500 लेवल · 2 जान','500 levels · 2 lives'),W/2,H*.26+40);
-   g.fillText(T('नीचे दिशा निर्देश पढ़ें ↓','Read the directions below ↓'),W/2,H*.26+66);
+   g.fillStyle='rgba(8,10,30,.84)';g.fillRect(0,0,W,H);
+   if(phase==='revive'){
+    tx('💥 '+T(N+', तुम टकरा गए!',N+', you crashed!'),cx,y0,26,800,'#f4f6ff');
+    tx(T(msg[0],msg[1]),cx,y0+34,16,600,'#ff9aa2');
+    tx(T('खुद को बचाने के लिए '+adLen+' सेकंड का विज्ञापन देखो','Watch a '+adLen+'-second ad to save yourself'),cx,y0+66,16,700,'#ffd166');
+    button('ad','📺 '+T('विज्ञापन देखो ('+adLen+' सेकंड)','Watch ad ('+adLen+' s)'),cx,y0+92,Math.min(W-40,300),50,'#ffd166');
+    button('quit','✖ '+T('छोड़ो, गेम खत्म','Give up'),cx,y0+152,Math.min(W-40,300),42,'rgba(255,255,255,.14)','#f4f6ff');
+   }else if(phase==='win'){
+    tx(T('शाबाश '+N+'! 🏆','Well done, '+N+'! 🏆'),cx,y0,30,800,'#f4f6ff');
+    tx(T('तुमने '+R.a+' '+R.h+' को बचा लिया!','You saved your '+R.en+'!'),cx,y0+40,18,700,'#7dffb2');
+    person(cx,y0+92,1.5,SP[cfg.rel],'happy',n);
+    tx(T('अंक','Score')+' '+score+'  ·  '+T('सर्वश्रेष्ठ','Best')+' '+best,cx,y0+185,16,700,'#f4f6ff');
+    tx(T('दोबारा खेलने के लिए टैप करें','Tap to play again'),cx,Math.max(H*.78,y0+225),19,800,'#ffd166');
+   }else if(phase==='over'){
+    tx('Game Over',cx,y0,34,800,'#f4f6ff');
+    tx(T(msg[0],msg[1]),cx,y0+44,17,600,'#ff9aa2');
+    tx(T('अंक','Score')+' '+score+'  ·  '+T('लेवल','Level')+' '+lv,cx,y0+90,19,700,'#f4f6ff');
+    tx(T('सर्वश्रेष्ठ','Best')+' '+best,cx,y0+120,19,700,'#f4f6ff');
+    tx(R.e+' '+T(N+', तुम '+R.a+' '+R.h+' को नहीं बचा पाए…','You could not save your '+R.en+'…'),cx,y0+156,15,600,'#ffd1d8');
+    tx(T('दोबारा खेलने के लिए टैप करें','Tap to play again'),cx,Math.max(H*.78,y0+195),19,800,'#ffd166');
+   }else{
+    tx('SITARA RUSH',cx,y0,34,800,'#f4f6ff');
+    tx(T(N+', '+R.a+' '+R.h+' को बचाओ!','Save your '+R.en+', '+N+'!'),cx,y0+44,19,800,'#ffd1d8');
+    person(cx,y0+84,1.25,SP[cfg.rel],'worry',n);
+    tx(T(MAXL+' लेवल · 2 जान',''+MAXL+' levels · 2 lives'),cx,y0+140,16,600,'#b8c0ff');
+    tx(T('ऊपर नाम/रिश्ता बदल सकते हैं · नीचे दिशा निर्देश ↓','Change name/relation above · directions below ↓'),cx,y0+164,13,600,'#b8c0ff');
+    tx(T('शुरू करने के लिए टैप करें','Tap to start'),cx,Math.max(H*.78,y0+205),20,800,'#ffd166');
+   }
   }
-  g.fillStyle='#ffd166';g.font='800 20px '+FN;g.fillText(over?T('दोबारा खेलने के लिए टैप करें','Tap to play again'):T('शुरू करने के लिए टैप करें','Tap to start'),W/2,H*.72);
  }}
 function loop(n){
  if(!alive())return;
  var dt=Math.min((n-last)/1000,.05);last=n;
- if(run)step(dt);
+ if(run)step(dt);else if(phase==='ad'){adT-=dt;if(adT<=0){adT=0;phase='adok'}}
  draw(n,dt);
  raf=requestAnimationFrame(loop)}
 addEventListener('resize',function(){if(alive())rs()});
-addEventListener('keydown',function(e){if(!alive())return;keys[e.key]=1;if(e.key===' '||e.key.indexOf('Arrow')===0)e.preventDefault();if(!run&&e.key===' '&&performance.now()-over>500)reset()});
+addEventListener('keydown',function(e){if(!alive())return;keys[e.key]=1;if(e.key===' '||e.key.indexOf('Arrow')===0)e.preventDefault();if(e.key===' '&&performance.now()-over>500&&(phase==='idle'||phase==='over'||phase==='win'))reset();else if(e.key===' '&&phase==='adok')revive()});
 addEventListener('keyup',function(e){keys[e.key]=0});
 function row(k,h,e){return '<div style="display:flex;align-items:center;gap:12px;margin:8px 0"><canvas class="sri" data-k="'+k+'" width="72" height="72" style="width:36px;height:36px;flex:none;background:#0b1020;border-radius:8px"></canvas><div><b>'+h+'</b><br><span class="muted">'+e+'</span></div></div>'}
 function li(h,e){return '<li>'+h+'<br><span class="muted">'+e+'</span></li>'}
+window.sitaraCfg=function(k,v){
+ if(k==='name')cfg.name=String(v).slice(0,14);
+ else if(k==='rel'&&REL[v]){cfg.rel=v;pi=0;if(!run)speak(REL[v].p(nm(),cfg.male)[0],REL[v])}
+ else if(k==='male')cfg.male=!!v;
+ else if(k==='voice')cfg.voice=!cfg.voice;
+ try{localStorage.setItem('sitararush-cfg',JSON.stringify(cfg))}catch(e){}
+ document.querySelectorAll('.srr').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-r')===cfg.rel)});
+ document.querySelectorAll('.srg').forEach(function(b){b.classList.toggle('on',(b.getAttribute('data-g')==='1')===cfg.male)});
+ var sv=document.getElementById('srv');if(sv){sv.classList.toggle('on',cfg.voice);sv.innerHTML=cfg.voice?'🔊 '+T('आवाज़ चालू','Voice on'):'🔇 '+T('आवाज़ बंद','Voice off')}};
 window.sitaraView=function(){
- return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><button onclick="ludoBack()" aria-label="Back" style="border:1px solid var(--line);background:var(--card);border-radius:12px;padding:6px 16px;font-size:22px;font-weight:800;line-height:1">&larr;</button><b>⭐ Sitara Rush</b></div>'
- +'<canvas id="srcv" style="display:block;width:100%;height:min(62vh,560px);min-height:360px;border-radius:12px;touch-action:none;background:#0b1020;box-shadow:0 1px 4px rgba(0,0,0,.2)"></canvas>'
- +'<div class="card"><h2>📖 दिशा निर्देश · Directions</h2>'
- +'<div style="border:2px solid var(--gold);border-radius:12px;padding:10px 12px;margin:8px 0"><b>🏆 इनाम · Prizes</b><br>🥉 लेवल 300 पर पहुँचो: ₹400 कैश इनाम<br><span class="muted">Reach level 300: ₹400 cash prize</span><br>🥈 लेवल 400 पर पहुँचो: ₹500 कैश इनाम<br><span class="muted">Reach level 400: ₹500 cash prize</span><br>🥇 लेवल 500 पर पहुँचो: ₹700 कैश इनाम<br><span class="muted">Reach level 500: ₹700 cash prize</span><br>💸 इनाम सीधे UPI से भेजा जाएगा।<br><span class="muted">Prizes are paid straight to your UPI.</span></div>'
- +'<b>🎮 कैसे खेलें · How to play</b><ul>'
- +li('उँगली से गोले (orb) को खींचकर घुमाइए।','Drag the orb with your finger.')
- +li('हर 100 अंक पर नया लेवल, कुल 500 लेवल।','A new level every 100 points, 500 levels in all.')
- +li('शुरू में 2 जान मिलती हैं। जितना आगे बढ़ेंगे, गेम उतना कठिन होगा।','You start with 2 lives. The further you go, the harder it gets.')
+ var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><button onclick="ludoBack()" aria-label="Back" style="border:1px solid var(--line);background:var(--card);border-radius:12px;padding:6px 16px;font-size:22px;font-weight:800;line-height:1">&larr;</button><b>⭐ Sitara Rush</b></div>';
+ h+='<style>.srr,.srg,.srv{border:2px solid var(--line);background:var(--card);border-radius:12px;padding:8px 2px;font-weight:700;font-size:13px;line-height:1.35}.srr.on,.srg.on,.srv.on{border-color:var(--acc);background:rgba(181,140,255,.22)}.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.srr span{font-size:24px;display:block}</style>';
+ h+='<div class="card"><h2>🎭 '+T('खिलाड़ी और रिश्ता','Player & who to save')+'</h2>';
+ h+='<p class="muted">'+T('आपका नाम','Your name')+'</p><input id="srn" maxlength="14" placeholder="रोहित" value="'+esc2(cfg.name)+'" oninput="sitaraCfg(\'name\',this.value)">';
+ h+='<div style="display:flex;gap:8px;margin:10px 0"><button class="srg'+(cfg.male?' on':'')+'" data-g="1" style="flex:1" onclick="sitaraCfg(\'male\',1)">👨 '+T('मैं पुरुष हूँ','I am male')+'</button><button class="srg'+(cfg.male?'':' on')+'" data-g="0" style="flex:1" onclick="sitaraCfg(\'male\',0)">👩 '+T('मैं महिला हूँ','I am female')+'</button></div>';
+ h+='<p class="muted">'+T('किसे बचाना चाहते हो? (वह ऊपर बैठकर आवाज़ देगा/देगी)','Who do you want to save? (they call for help from the top)')+'</p><div class="sgrid">';
+ RK.forEach(function(k){h+='<button class="srr'+(k===cfg.rel?' on':'')+'" data-r="'+k+'" onclick="sitaraCfg(\'rel\',\''+k+'\')"><span>'+REL[k].e+'</span>'+T(REL[k].h,REL[k].en)+'</button>'});
+ h+='</div><button id="srv" class="srv'+(cfg.voice?' on':'')+'" style="width:100%;padding:8px" onclick="sitaraCfg(\'voice\',1)">'+(cfg.voice?'🔊 '+T('आवाज़ चालू','Voice on'):'🔇 '+T('आवाज़ बंद','Voice off'))+'</button>'+(window.speechSynthesis?'':'<p class="err">'+T('इस ब्राउज़र में आवाज़ नहीं चलती। गेम को Chrome में खोलें।','Voice is not supported here. Open the game in Chrome.')+'</p>')+'</div>';
+ h+='<canvas id="srcv" style="display:block;width:100%;height:min(62vh,560px);min-height:380px;border-radius:12px;touch-action:none;background:#0b1020;box-shadow:0 1px 4px rgba(0,0,0,.2)"></canvas>';
+ h+='<div class="card"><h2>📖 दिशा निर्देश · Directions</h2><b>🎮 कैसे खेलें · How to play</b><ul>'
+ +li('उँगली से खुद को (अपने किरदार को) खींचकर घुमाइए। ऊपर आपका चुना हुआ रिश्ता मदद के लिए पुकार रहा है।','Drag yourself (your character) with your finger. Your chosen loved one is calling for help at the top.')
  +li('कीबोर्ड पर: तीर वाले बटन या W A S D।','Keyboard: arrow keys or W A S D.')
  +'</ul><b>⭐ क्या पकड़ें, किससे बचें · What to catch, what to dodge</b>'
  +row('s','चमकीला सितारा: +10 अंक','Shiny star: +10 points')
@@ -1657,19 +1812,25 @@ window.sitaraView=function(){
  +row('b','काला सिक्का: +50 अंक (लेवल 5 से)','Black coin: +50 points (from level 5)')
  +row('h','दिल: +1 जान (अधिकतम 5)','Heart: +1 life (max 5)')
  +row('k','काला दिल: -1 जान (लेवल 3 से)','Black heart: -1 life (from level 3)')
- +row('x','लाल सितारा/काँटा: छूते ही गेम खत्म! हर लेवल के साथ धीरे-धीरे बढ़ते जाते हैं।','Red spike: game over on touch! More of them appear as levels rise.')
- +'</div>'};
+ +row('x','लाल सितारा: छूते ही गेम रुक जाता है! हर लेवल के साथ और बढ़ते जाते हैं।','Red star: touching it stops the game! More of them appear as levels rise.')
+ +'</div>';
+ return h};
 window.sitaraAfter=function(){
  cv=document.getElementById('srcv');if(!cv)return;
+ try{window.speechSynthesis&&speechSynthesis.getVoices()}catch(e){}
  g=cv.getContext('2d');rs();
- if(!run&&!over){P.x=P.tx=W/2;P.y=P.ty=H*.75}
- cv.onpointerdown=function(e){if(!run&&performance.now()-over>500)reset();pos(e)};
- cv.onpointermove=pos;
- var sg=g;
+ if(!run&&phase==='idle'){P.x=P.tx=W/2;P.y=P.ty=H*.75}
+ cv.onpointerdown=function(e){
+  var b=cv.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;
+  if(phase==='idle'||((phase==='over'||phase==='win')&&performance.now()-over>500)){reset();pos(e);return}
+  if(phase==='revive'||phase==='adok'){for(var i=0;i<btns.length;i++){var q=btns[i];if(x>=q.x&&x<=q.x+q.w&&y>=q.y&&y<=q.y+q.h){act(q.id);return}}return}
+  if(run)pos(e)};
+ cv.onpointermove=function(e){if(run)pos(e)};
+ var sg0=g;
  document.querySelectorAll('.sri').forEach(function(c){var k=c.getAttribute('data-k');g=c.getContext('2d');drawItem(k,36,36,LR[k],.3,0)});
- g=sg;
+ g=sg0;
  cancelAnimationFrame(raf);last=performance.now();raf=requestAnimationFrame(loop)};
-window.sitaraExit=function(){cancelAnimationFrame(raf);run=false;over=0;won=false;cv=null};
+window.sitaraExit=function(){cancelAnimationFrame(raf);run=false;over=0;won=false;phase='idle';cv=null;try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}};
 })();
 
 var MODULES=[
