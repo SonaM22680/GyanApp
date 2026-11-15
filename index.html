@@ -160,7 +160,7 @@ var EQ4=[["e_improve","Choose the option that best improves the part in capitals
 EQ4.forEach(function(r){QUESTIONS.push({c:'english',t:r[0],s:RN[r[0]],q:r[1],o:r[2],a:r[3],e:''})});
 var MOCK={ssc:{n:25,s:['reason','math','english','gk']},rly:{n:25,s:['math','reason','science','gk']},bank:{n:25,s:['reason','math','english','gk']},upp:{n:25,s:['hindi','gk','math','reason','samvidhan']},upsi:{n:25,s:['hindi','gk','math','reason','samvidhan']}};
 function cnt(c){var m=MOCK[c];if(m)return QUESTIONS.filter(function(q){return m.s.indexOf(q.c)>=0}).length;return SEL(c).length}
-function poolFor(c){if(c.indexOf('rq:')===0){var p=c.split(':');return SEL('rt:'+p[1]).slice((p[2]-1)*10,p[2]*10)}var m=MOCK[c];if(!m)return shuffle(SEL(c)).slice(0,10);var per=Math.ceil(m.n/m.s.length),out=[];m.s.forEach(function(s){out=out.concat(shuffle(QUESTIONS.filter(function(q){return q.c===s})).slice(0,per))});return shuffle(out).slice(0,m.n)}
+function poolFor(c){if(c==='daily')return shuffle(QUESTIONS).slice(0,10);if(c.indexOf('rq:')===0){var p=c.split(':');return SEL('rt:'+p[1]).slice((p[2]-1)*10,p[2]*10)}var m=MOCK[c];if(!m)return shuffle(SEL(c)).slice(0,10);var per=Math.ceil(m.n/m.s.length),out=[];m.s.forEach(function(s){out=out.concat(shuffle(QUESTIONS.filter(function(q){return q.c===s})).slice(0,per))});return shuffle(out).slice(0,m.n)}
 function examName(c){var r=EXAMS.filter(function(x){return x[0]===c})[0];return r?pick(r[1]):''}
 function backBar(){var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><button onclick="quitAsk()" aria-label="Back" style="border:1px solid var(--line);background:var(--card);border-radius:12px;padding:6px 16px;font-size:22px;font-weight:800;line-height:1">&larr;</button><b>'+(S.mock?S.mock+' · '+T('मॉक टेस्ट','Mock test'):(S.rqn?pick(S.rqn)+' · Quiz '+S.rqi:''))+'</b></div>';if(S.exitAsk)h+='<div class="card"><b>'+T('क्विज़ बीच में छोड़ें?','Leave the quiz?')+'</b><p class="muted">'+T('अभी तक का स्कोर सेव नहीं होगा।','Your score so far will not be saved.')+'</p><button class="btn" onclick="quitYes()">'+T('हाँ, बाहर जाएँ','Yes, leave')+'</button><button class="btn ghost" onclick="quitNo()">'+T('नहीं, जारी रखें','No, continue')+'</button></div>';return h}
 function quitAsk(){try{history.pushState({},'')}catch(e){}S.exitAsk=true;render()}
@@ -893,7 +893,7 @@ function pAns(k){if(!P||P.done)return;P.ans[P.i]=(P.ans[P.i]===k?-1:k);render()}
 function pGo(i){if(i<0||i>=P.qs.length)return;P.i=i;P.subAsk=false;render();window.scrollTo(0,0)}
 function pSubAsk(){P.subAsk=true;render()}
 function pSubNo(){P.subAsk=false;render()}
-function pSubmit(){if(!P||P.done)return;clearInterval(PT);PT=null;P.done=true;P.used=P.cfg.secs-Math.max(P.left,0);P.res=P.cfg.parts.map(function(p,si){var a=0,c=0,w=0;P.qs.forEach(function(q,i){if(q.sec!==si)return;if(P.ans[i]>=0){a++;if(P.ans[i]===q.a)c++;else w++}});return {n:P.qs.filter(function(q){return q.sec===si}).length,a:a,c:c,w:w,m:c*P.cfg.pos-w*P.cfg.neg}});render();window.scrollTo(0,0)}
+function pSubmit(){if(!P||P.done)return;clearInterval(PT);PT=null;P.done=true;P.qs.forEach(function(q,i){if(P.ans[i]>=0)recStat(q,P.ans[i]===q.a)});P.used=P.cfg.secs-Math.max(P.left,0);P.res=P.cfg.parts.map(function(p,si){var a=0,c=0,w=0;P.qs.forEach(function(q,i){if(q.sec!==si)return;if(P.ans[i]>=0){a++;if(P.ans[i]===q.a)c++;else w++}});return {n:P.qs.filter(function(q){return q.sec===si}).length,a:a,c:c,w:w,m:c*P.cfg.pos-w*P.cfg.neg}});render();window.scrollTo(0,0)}
 function pExitAsk(){try{history.pushState({},'')}catch(e){}P.exitAsk=true;render()}
 function pExitNo(){P.exitAsk=false;render()}
 function pClose(){clearInterval(PT);PT=null;P=null;S={qs:[],cat:null};render()}
@@ -920,11 +920,26 @@ function paperResult(){var c=P.cfg,n=P.qs.length;
  if(P.short.length)h+='<p class="muted">'+T('सवाल बैंक में कम सवाल होने से इन हिस्सों में कम सवाल आए: ','Some sections had fewer questions: ')+P.short.join(', ')+'</p>';
  h+='<button class="btn" onclick="pReview(true)">'+T('सवाल और व्याख्या देखें','Review questions')+'</button><button class="btn ghost" onclick="pRestart()">'+T('नया पेपर दें','Take a new paper')+'</button><button class="btn ghost" onclick="pClose()">'+T('मेन्यू पर जाएँ','Back to menu')+'</button>';
  return h}
+
+// ===== स्मार्ट क्विज़ होम: स्ट्रीक, सटीकता, डेली 10 / Smart quiz home =====
+function stLoad(){try{return JSON.parse(localStorage.getItem('gy_stat')||'{}')||{}}catch(e){return {}}}
+function dayKey(d){d=d||new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
+function yKey(){var y=new Date();y.setDate(y.getDate()-1);return dayKey(y)}
+function recStat(q,ok){try{var c=(q&&q.c)||String((S&&S.cat)||'').split(':')[0]||'x',st=stLoad();st.cat=st.cat||{};var k=st.cat[c]=st.cat[c]||{a:0,c:0};k.a++;if(ok)k.c++;st.a=(st.a||0)+1;if(ok)st.c=(st.c||0)+1;var t=dayKey();if(st.day!==t){st.streak=(st.day===yKey())?(st.streak||0)+1:1;st.day=t;st.today=0}st.today=(st.today||0)+1;localStorage.setItem('gy_stat',JSON.stringify(st))}catch(e){}}
+function statSub(id,sub){var k=(stLoad().cat||{})[id];if(!k||!k.a)return sub;var p=Math.round(100*k.c/k.a);return (sub?sub+' · ':'')+'✅ '+p+'% · '+k.a+' '+T('हल','done')}
+function navRow2(id,ic,t,sub,oc){return navRow(ic,t,statSub(id,sub),oc)}
+function homeCard(){var st=stLoad(),t=dayKey(),live=st.day===t||st.day===yKey(),streak=live?(st.streak||0):0,today=st.day===t?(st.today||0):0,acc=st.a?Math.round(100*(st.c||0)/st.a):0,weak=null,wa=101;
+ CATS.forEach(function(x){var k=(st.cat||{})[x[0]];if(k&&k.a>=5&&cnt(x[0])>0){var p=k.c/k.a*100;if(p<wa&&p<80){wa=p;weak=x}}});
+ function tile(ic,v,l){return '<div style="flex:1;background:rgba(109,40,217,.08);border-radius:14px;padding:8px 4px"><div style="font-size:22px">'+ic+'</div><div style="font-size:20px;font-weight:800">'+v+'</div><div class="muted" style="font-size:12px">'+l+'</div></div>'}
+ var g=Math.min(100,today*10),h='<div class="card"><div style="display:flex;gap:8px;text-align:center">'+tile('🔥',streak,T('दिन streak','Day streak'))+tile('✅',acc+'%',T('सही जवाब','Accuracy'))+tile('🎯',Math.min(today,10)+'/10',T('आज का लक्ष्य','Today goal'))+'</div><div class="lbar" style="margin-top:10px"><i style="width:'+g+'%"></i></div>'
+ +'<button class="btn" style="margin-top:10px" onclick="startQuiz(\'daily\')">⚡ '+T('डेली 10 क्विज़','Daily 10 quiz')+'</button>'
+ +(weak?'<button class="btn ghost" onclick="startQuiz(\''+weak[0]+'\')">🎯 '+T('कमज़ोर विषय की प्रैक्टिस: ','Practice weak subject: ')+pick(weak[2])+' ('+Math.round(wa)+'%)</button>':'')+'</div>';
+ return h}
 function quiz(){
  if(LQ)return langPick();
  if(P)return P.done?paperResult():paperView();
  if((!S.qs||!S.qs.length)&&NAV.v)return NAV.v==='topics'?navTopics():NAV.v==='quizzes'?navQuizzes():notesUI();
- if(!S.qs||!S.qs.length){var g='display:block';return '<div class="card"><div style="'+g+'">'+CATS.map(function(x0){var x=[x0[0],x0[1],pick(x0[2])];return x[0]==='geography'?navRow(x[1],x[2],T('नोट्स (4 भाग) और क्विज़','Notes (4 parts) & quiz'),"NAV.g='geo';openNav('topics')"):x[0]==='history'?navRow(x[1],x[2],T('प्राचीन, मध्यकालीन, आधुनिक · नोट्स और क्विज़','Ancient, Medieval, Modern · notes & quiz'),"NAV.g='his';NAV.era=null;openNav('topics')"):(x[0]==='reason'||x[0]==='ict'||x[0]==='math')?navRow(x[1],x[2],'',"NAV.g='"+x[0]+"';openNav('topics')"):(x[0]==='samvidhan'||x[0]==='hindi'||x[0]==='english'?navRow(x[1],x[2],T('विषय अनुसार क्विज़ और नोट्स','Topic-wise quiz & notes'),"NAV.g='"+(x[0]==='hindi'?'hindi':x[0]==='english'?'eng':'sam')+"';openNav('topics')"):catBtn(x[0],x[1],x[2]))}).join('')+'</div><h2>'+T('मॉक टेस्ट चुनें (25 सवाल)','Pick a mock test (25 Qs)')+'</h2><div style="'+g+'">'+EXAMS.map(function(x){return catBtn(x[0],'🎯',pick(x[1]))}).join('')+'</div></div>'}
+ if(!S.qs||!S.qs.length){var g='display:block';return homeCard()+'<div class="card"><div style="'+g+'">'+CATS.map(function(x0){var x=[x0[0],x0[1],pick(x0[2])];return x[0]==='geography'?navRow2(x0[0],x[1],x[2],T('नोट्स (4 भाग) और क्विज़','Notes (4 parts) & quiz'),"NAV.g='geo';openNav('topics')"):x[0]==='history'?navRow2(x0[0],x[1],x[2],T('प्राचीन, मध्यकालीन, आधुनिक · नोट्स और क्विज़','Ancient, Medieval, Modern · notes & quiz'),"NAV.g='his';NAV.era=null;openNav('topics')"):(x[0]==='reason'||x[0]==='ict'||x[0]==='math')?navRow2(x0[0],x[1],x[2],'',"NAV.g='"+x[0]+"';openNav('topics')"):(x[0]==='samvidhan'||x[0]==='hindi'||x[0]==='english'?navRow2(x0[0],x[1],x[2],T('विषय अनुसार क्विज़ और नोट्स','Topic-wise quiz & notes'),"NAV.g='"+(x[0]==='hindi'?'hindi':x[0]==='english'?'eng':'sam')+"';openNav('topics')"):catBtn(x[0],x[1],x[2]))}).join('')+'</div><h2>'+T('मॉक टेस्ट चुनें (25 सवाल)','Pick a mock test (25 Qs)')+'</h2><div style="'+g+'">'+EXAMS.map(function(x){return catBtn(x[0],'🎯',pick(x[1]))}).join('')+'</div></div>'}
  if(S.done){var tot=S.qs.length;return '<div class="card" style="text-align:center"><p class="muted">'+T('आपका स्कोर','Your score')+'</p><div class="big">'+S.score.toFixed(2).replace(/\.00$/,'')+'<span class="muted"> / '+tot+'</span></div><p>'+T('सही','Right')+': '+S.right+' · '+T('गलत','Wrong')+': '+S.wrong+' · '+T('छोड़े','Skipped')+': '+S.skip+'</p><button class="btn" onclick="startQuiz(S.cat)">'+T('फिर से खेलें','Play again')+'</button><button class="btn ghost" onclick="menu()">'+T('विषय बदलें','Change subject')+'</button></div>'}
  var q=S.qs[S.i],h=backBar()+'<div class="lbar"><i style="width:'+(S.i/S.qs.length*100)+'%"></i></div><p class="muted">'+T('सवाल','Question')+' '+(S.i+1)+'/'+S.qs.length+' · '+pick(q.s)+'</p><h2>'+pick(q.q)+'</h2>';
  q.o.forEach(function(o,k){var c='opt';if(S.locked){if(k===q.a)c+=' good';else if(k===S.sel)c+=' bad'}h+='<button class="'+c+'" onclick="ans('+k+')">'+pick(o)+'</button>'});
@@ -932,7 +947,7 @@ function quiz(){
  else h+='<button class="btn ghost" onclick="skipQ()">'+T('छोड़ें','Skip')+'</button>';
  if(!S.locked)h+='<div style="margin-top:14px;text-align:center"><div class="lbar"><i id="tb" style="width:'+(left/40*100)+'%;background:var(--gold)"></i></div><p>⏱️ <b id="tm">'+left+'</b> '+T('सेकंड','sec')+'</p></div>';
  return h}
-function ans(k){if(S.locked)return;S.locked=true;S.sel=k;S.timeout=false;if(k===S.qs[S.i].a){S.score+=1;S.right++}else{S.score-=0.25;S.wrong++}render()}
+function ans(k){if(S.locked)return;S.locked=true;S.sel=k;S.timeout=false;recStat(S.qs[S.i],k===S.qs[S.i].a);if(k===S.qs[S.i].a){S.score+=1;S.right++}else{S.score-=0.25;S.wrong++}render()}
 function skipQ(){S.skip++;nextQ()}
 function nextQ(){S.locked=false;S.sel=-1;S.timeout=false;if(S.i+1<S.qs.length)S.i++;else S.done=true;render()}
 
@@ -974,28 +989,43 @@ function modSend(v){if(banned)return T('आपकी ID चैट से ब्�
  if(abuse){strikes++;try{localStorage.setItem('gy_strikes',strikes)}catch(e){}
   if(strikes>=2){banned=true;return T('दूसरी गलती। आपकी ID हमेशा के लिए ब्लॉक कर दी गई है।','Second strike. Your ID is blocked forever.')}return WARN()}
  return er}
-var PC={code:'',poll:null,list:[]},PU='x';
+var PHOTO_CHECK=true; // true: photo dikhegi jab server (Vision SafeSearch) ok kare. Testing ke liye false karo.
+var PC={code:'',poll:null,list:[],sig:''},PU='x';
 try{PU=localStorage.getItem('gy_pcid')||Math.random().toString(36).slice(2,10);localStorage.setItem('gy_pcid',PU)}catch(e){}
 function pcName(){var a=window.GYX&&GYX.au&&GYX.au();return(a&&a.name)||'Player'}
-function pcFb(m,b,p){var X=window.GYX;if(!X||!X.db)return Promise.reject(0);return X.aTok().then(function(t){return fetch(X.db+'/ludo/'+p+'.json'+(t?'?auth='+encodeURIComponent(t):''),{method:m,body:b!==undefined?JSON.stringify(b):undefined}).then(function(r){return r.json()})})}
-function pcGet(){if(!PC.code)return;pcFb('GET',undefined,'PC'+PC.code+'/m').then(function(o){var a=[];if(o&&typeof o==='object')Object.keys(o).forEach(function(k){a.push(o[k])});a.sort(function(x,y){return x.ts-y.ts});if(a.length!==PC.list.length){PC.list=a.slice(-50);pcDraw()}}).catch(function(){})}
-function pcDraw(){var d=document.getElementById('pcm');if(!d)return;var h='';PC.list.forEach(function(m,i){if(blocked[m.u||m.n])return;var me=m.u===PU;h+='<div class="msg"><b>'+(me?T('आप','You'):esc2(m.n))+'</b><br>'+esc2(m.m)+(me?'':'<br><button class="lang" onclick="pcRep('+i+')">'+T('रिपोर्ट','Report')+'</button> <button class="lang" onclick="pcBlk('+i+')">'+T('ब्लॉक','Block')+'</button>')+'</div>'});d.innerHTML=h||'<p class="muted">'+T('अभी कोई संदेश नहीं।','No messages yet.')+'</p>';d.scrollTop=9e9}
+function pcFb(m,b,p,q){var X=window.GYX;if(!X||!X.db)return Promise.reject(0);return X.aTok().then(function(t){var qs=[];if(t)qs.push('auth='+encodeURIComponent(t));if(q)qs.push(q);return fetch(X.db+'/ludo/'+p+'.json'+(qs.length?'?'+qs.join('&'):''),{method:m,body:b!==undefined?JSON.stringify(b):undefined}).then(function(r){return r.json()})})}
+function pcGet(){if(!PC.code)return;pcFb('GET',undefined,'PC'+PC.code+'/m','orderBy=%22%24key%22&limitToLast=30').then(function(o){var a=[];if(o&&typeof o==='object')Object.keys(o).forEach(function(k){if(o[k]&&typeof o[k]==='object')a.push(o[k])});a.sort(function(x,y){return x.ts-y.ts});var sg=a.map(function(m){return m.ts+(m.st||'')}).join(',');if(sg!==PC.sig){PC.sig=sg;PC.list=a;pcDraw()}}).catch(function(){})}
+function pcDraw(){var d=document.getElementById('pcm');if(!d)return;var h='';PC.list.forEach(function(m,i){if(blocked[m.u||m.n])return;var me=m.u===PU;h+='<div class="msg"><b>'+(me?T('आप','You'):esc2(m.n))+'</b><br>'+esc2(m.m||'')+(m.st==='x'?'<br><span class="muted">🚫 फोटो हटाई गई · Photo removed</span>':(PHOTO_CHECK&&m.img&&m.st!=='ok'?'<br><span class="muted">🔍 फोटो जाँची जा रही है · Checking photo...</span>':(typeof m.img==='string'&&m.img.indexOf('data:image/jpeg;base64,')===0&&m.img.length<120000?'<br><img src="'+esc2(m.img)+'" alt="photo" style="max-width:100%;max-height:260px;border-radius:10px;margin-top:6px">':'')))+(me?'':'<br><button class="lang" onclick="pcRep('+i+')">'+T('रिपोर्ट','Report')+'</button> <button class="lang" onclick="pcBlk('+i+')">'+T('ब्लॉक','Block')+'</button>')+'</div>'});d.innerHTML=h||'<p class="muted">'+T('अभी कोई संदेश नहीं।','No messages yet.')+'</p>';d.scrollTop=9e9}
 function pcOpen(c){c=(c||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(!c)return;PC.code=c;PC.list=[];clearInterval(PC.poll);PC.poll=setInterval(pcGet,2500);pcGet();render()}
-function pcNew(){pcOpen(Math.random().toString(36).slice(2,8))}
-function pcLeave(){clearInterval(PC.poll);PC.poll=null;PC.code='';PC.list=[];render()}
-function pcShare(){var t=T('निजी चैट कोड: ','Private chat code: ')+PC.code;if(navigator.share)navigator.share({text:t}).catch(function(){});else if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){note(T('कोड कॉपी हो गया','Code copied'))}).catch(function(){note(t)});else note(t)}
+function pcPhoto(inp){var f=inp&&inp.files&&inp.files[0];if(inp)inp.value='';if(!f)return;var e=document.getElementById('pce');
+ if(banned){render();return}
+ if(!/^image\/(jpeg|png|webp|gif)$/i.test(f.type)){if(e)e.textContent='सिर्फ़ फोटो भेजें। · Send photos only.';return}
+ if(!confirm('क्या यह फोटो सादी है? अश्लील फोटो भेजने पर ID ब्लॉक होगी।\nIs this photo normal? Sending an obscene photo gets your ID blocked.'))return;
+ var img=new Image(),url=URL.createObjectURL(f);
+ img.onload=function(){URL.revokeObjectURL(url);var mx=360,w=img.width,h=img.height,k=Math.min(1,mx/Math.max(w,h));w=Math.max(1,Math.round(w*k));h=Math.max(1,Math.round(h*k));
+  var c=document.createElement('canvas');c.width=w;c.height=h;var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,h);g.drawImage(img,0,0,w,h);
+  var q=.6,d=c.toDataURL('image/jpeg',q);while(d.length>70000&&q>.3){q-=.1;d=c.toDataURL('image/jpeg',q)}
+  if(d.length>100000){if(e)e.textContent='फोटो बहुत बड़ी है। · Photo is too big.';return}
+  if(e)e.textContent='';
+  var pm={n:pcName(),u:PU,m:'',img:d,ts:Date.now()};if(PHOTO_CHECK)pm.st='p';pcFb('POST',pm,'PC'+PC.code+'/m').then(pcGet).catch(function(){note(T('नेटवर्क एरर','Network error'))})};
+ img.onerror=function(){URL.revokeObjectURL(url);if(e)e.textContent='फोटो नहीं खुली। · Could not open photo.'};
+ img.src=url}
 function pcSend(){var i=document.getElementById('ci'),v=((i&&i.value)||'').trim();if(!v)return;var er=modSend(v),e=document.getElementById('pce');
  if(er){if(banned){render()}else if(e)e.textContent=er;return}
  if(e)e.textContent='';i.value='';pcFb('POST',{n:pcName(),u:PU,m:v.slice(0,200),ts:Date.now()},'PC'+PC.code+'/m').then(pcGet).catch(function(){note(T('नेटवर्क एरर','Network error'))})}
-function pcRep(i){var m=PC.list[i];if(!m)return;pcFb('POST',{by:PU,n:m.n,u:m.u,m:m.m,ts:Date.now()},'PCR'+PC.code).then(function(){note(T('रिपोर्ट भेज दी गई','Report sent'))}).catch(function(){note(T('रिपोर्ट नहीं जा सकी','Could not send report'))})}
+function pcRep(i){var m=PC.list[i];if(!m)return;pcFb('POST',{by:PU,n:m.n,u:m.u,m:m.m||'',img:m.img||'',ts:Date.now()},'PCR'+PC.code).then(function(){note(T('रिपोर्ट भेज दी गई','Report sent'))}).catch(function(){note(T('रिपोर्ट नहीं जा सकी','Could not send report'))})}
 function pcBlk(i){var m=PC.list[i];if(!m)return;blocked[m.u||m.n]=m.n;pcDraw();render();note(T('ब्लॉक किया','Blocked'))}
 function unb(i){delete blocked[Object.keys(blocked)[i]];render();pcDraw()}
 function chat(){
- var h='<h2>💬 '+T('निजी चैट','Private chat')+'</h2><div class="card"><b>⚠️ '+T('सख्त नियम','Strict rules')+'</b><p>'+T('अपनी पर्सनल डिटेल देना और गाली, अश्लील सामग्री देना या लेना सख्त मना है। अश्लील वीडियो या अश्लील फोटो भेजना प्रतिबंधित है। ऐसा कोई करता है तो उसकी ID ब्लॉक कर दी जाएगी।','Sharing your personal details, and giving or receiving abuse or obscene content, is strictly prohibited. Sending obscene videos or photos is banned. Anyone who does this will have their ID blocked.')+'</p></div>';
- if(banned)return h+'<p class="err">'+T('आपकी ID चैट से ब्लॉक कर दी गई है।','Your ID has been blocked from chat.')+'</p>';
- if(!PC.code)h+='<div class="card"><button class="btn" onclick="pcNew()">'+T('नई निजी चैट बनाएँ','Start a new private chat')+'</button><input id="pcc" maxlength="8" placeholder="'+T('चैट कोड','Chat code')+'"><button class="btn ghost" onclick="pcOpen(document.getElementById(\'pcc\').value)">'+T('कोड से जुड़ें','Join with code')+'</button></div>';
- else{if(!PC.poll)PC.poll=setInterval(pcGet,2500);
-  h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>'+T('कोड','Code')+': '+esc2(PC.code)+'</b><span><button class="lang" onclick="pcShare()">📲</button> <button class="lang" onclick="pcLeave()">'+T('बाहर','Leave')+'</button></span></div><div id="pcm" style="max-height:46vh;overflow-y:auto;margin:8px 0"></div><p class="err" id="pce">'+chatErr+'</p><input id="ci" maxlength="200" placeholder="'+T('संदेश लिखें','Type a message')+'"><button class="btn" onclick="pcSend()">'+T('भेजें','Send')+'</button></div>'}
+ var h='<h2>💬 Chat</h2><div class="card"><b>⚠️ सख्त नियम · Strict rules</b><ul>'
+ +'<li>अपनी निजी जानकारी न दें।<br><small>Do not share personal details.</small></li>'
+ +'<li>गाली और गंदी बात मना है।<br><small>No abuse or obscene talk.</small></li>'
+ +'<li>अश्लील फोटो या वीडियो मना है।<br><small>Obscene photos or videos are banned.</small></li>'
+ +'<li>गलती करने पर ID ब्लॉक होगी।<br><small>Break the rules and your ID is blocked.</small></li></ul></div>';
+ if(banned)return h+'<p class="err">आपकी ID चैट से ब्लॉक है। · Your ID is blocked from chat.</p>';
+ if(!PC.code){PC.code='ALL';PC.list=[]}
+ if(!PC.poll){PC.poll=setInterval(pcGet,2500);pcGet()}
+ h+='<div class="card"><div id="pcm" style="max-height:46vh;overflow-y:auto;margin:8px 0"></div><p class="err" id="pce">'+chatErr+'</p><div style="display:flex;gap:8px;align-items:center"><label aria-label="Add photo" style="flex:none;width:46px;height:46px;border-radius:50%;background:var(--acc);color:var(--onacc);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;cursor:pointer;margin:0">+<input type="file" accept="image/*" style="display:none" onchange="pcPhoto(this)"></label><input id="ci" maxlength="200" placeholder="संदेश लिखें · Type a message" style="flex:1;margin:0"><button class="btn" style="width:auto;margin:0;flex:none" onclick="pcSend()">भेजें · Send</button></div></div>';
  Object.keys(blocked).forEach(function(u,i){h+='<p class="muted">'+esc2(blocked[u]===true?u:blocked[u])+' '+T('ब्लॉक है','is blocked')+' <button class="lang" onclick="unb('+i+')">'+T('अनब्लॉक','Unblock')+'</button></p>'});
  return h}
 
@@ -1935,7 +1965,7 @@ var MODULES=[
  {id:'quiz',icon:'📝',t:['क्विज़','Quiz'],view:quiz},
  {id:'exam',icon:'🏆',t:['परीक्षा','Exam'],view:function(){return examView()||soon('मासिक इनाम परीक्षा','Monthly prize exam',['सिर्फ़ 18+ के लिए, मुफ़्त एंट्री|18+ only, free entry','नतीजा और UPI इनाम 2 दिन बाद|Result and UPI prize after 2 days','AI से नकल की जाँच, 2 दिन बाद डेटा डिलीट|AI cheating check, data deleted after 2 days','कोई वॉलेट या विड्रॉ नहीं|No wallet, no withdrawal'])}},
  {id:'games',icon:'🎮',t:['गेम्स','Games'],view:ludoView},
- {id:'chat',icon:'💬',t:['निजी चैट','Private chat'],view:chat},
+ {id:'chat',icon:'💬',t:['चैट','Chat'],view:chat},
  {id:'lab',icon:'🛠️',t:['डिज़ाइन लैब','Design Lab'],view:labView}
 ];
 
@@ -1946,7 +1976,7 @@ function render(){
  var m=MODULES.filter(function(x){return x.id===tab})[0];
  document.getElementById('app').innerHTML=m.view();if(tab==='games')ludoAfter();if(tab==='chat')pcDraw();if(tab==='lab')labAfter();
  var live=tab==='quiz'&&S.qs&&S.qs.length&&!S.done&&!S.locked;if(live){if(!TM){left=40;TM=setInterval(tick,1000)}}else{clearInterval(TM);TM=null;left=40}
- document.getElementById('nav').innerHTML=MODULES.map(function(x){return '<button class="'+(x.id===tab?'on':'')+'" onclick="go(\''+x.id+'\')"><span>'+x.icon+'</span>'+(lang==='h'?x.t[0]:x.t[1])+'</button>'}).join('')}
+ document.getElementById('nav').innerHTML=MODULES.map(function(x){return '<button class="'+(x.id===tab?'on':'')+'" onclick="go(\''+x.id+'\')"><span>'+x.icon+'</span>'+x.t[1]+'</button>'}).join('')}
 function go(id){if(id!==tab){try{history.pushState({},'')}catch(e){}}tab=id;LABOPEN=0;chatErr='';if(id!=='chat'){clearInterval(PC.poll);PC.poll=null}render()}
 window.onpopstate=function(){if(LQ){LQ=null;render();return}if(P&&!P.done){pExitAsk()}else if(P&&P.done){pClose()}else if(S.qs&&S.qs.length&&!S.done){quitAsk()}else if(S.qs&&S.qs.length){menu()}else if(NAV.v){navBack()}else if(tab==='lab'&&LABOPEN){LABOPEN=0;render()}else if(tab==='games'&&window.ludoIsOpen&&window.ludoIsOpen()){window.ludoBack()}else if(tab!=='quiz'){tab='quiz';render()}};
 document.getElementById('lg').onclick=function(){};
